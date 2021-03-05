@@ -1,0 +1,42 @@
+GIT
+Can do this from:
+1. git-bash application and commands
+2. RStudio upper-right "Git" tab, using buttons and lower-left "Terminal" tab
+3. GitHub website with file uploads
+4. SourceTree, from Atlassian, or another GitHub GUI (like GitHub Desktop)
+
+Go to C:/Program Files/Git/etc/profile.d
+Can modify .bashrc, which executes on interactive shells (every BASH window you open):
+cd C:/Users/newHomeDir					Set new home directory for Git Bash to open in
+Can modify .bash_profile, which executes on login shells (first BASH window you open):
+
+
+CONFIGURATION (Done!)
+git config --global user.name 'Lynn Huang'		Set user name
+git config --global user.email 'lynnshuang94@gmail.com' Set e-mail (must match GitHub account)
+git config --global --list				List current git config settings
+git config --global core.editor "code --wait"		Use VS Code as text editor
+git config --show-origin --get core.autocrlf		Reveal current line ending configuration (Windows special). Should be true!
+git config --show-origin --get credential.helper	Reveal configuration on Windows for HTTPS credentials
+git config --global credential.helper manager		Set Git Credential Manager as credential helper in Windows (checked in above command). Should be pre-set
+
+
+git clone https://github.com/LynnSHuang/ST558.git	Make local copy of repo
+
+git remote show origin					Get info about repo's connection to GitHub
+
+git status						Check changes to commit, then push
+git add -A						Add (all) files to commit
+git commit -m "Commit Message"				Commit with (required) message
+git push						Push changes to master
+
+SHELL
+cd newDir - Change directory to newDir specified
+echo "Stuff" - Output string argument. Can redirect to >> someFile
+head - View first couple lines of file
+ls - List directory contents
+pwd - Print working directory
+rm badDir - Remove directory badDir (-r for recursive, -f force)
+~ - Refers to home directory
+. - Refers to current directory
+.. - Refers to parent directory
