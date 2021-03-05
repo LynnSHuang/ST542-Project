@@ -1,0 +1,724 @@
+---
+title: "ST 542 Project"
+author: "John Rollman"
+date: "February 25, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Packages  
+```{r}
+library(tidyverse) #Data manipulation and formatting
+library(knitr) #Report tools and formatting
+library(corrplot) #Pretty correlation plots
+library(caret) #Multiuse package containing many models
+library(sem) #Structural equation models for CFA
+library(psych) #Exploratory factor models
+library(randomForest) #Classification trees also in caret
+library(gbm) #Logistic classifies for caret and other packages
+#library(GGally) #Another correlation plot option
+library(DiagrammeR)
+library(rattle)
+library(Hmisc)
+```
+
+
+#Data Import  
+```{r}
+  #BehDat <- read.csv("Vole_Beh_R.csv") %>% 
+  BehDat.cntrl <- read.csv("Vole_Beh_R.csv") %>% 
+  #filter(NULL_CHECK == "Complete Data") %>% 
+  filter(TRT == "CTRL") %>%
+  #filter(TRT != "CTRL"&TRT != "5MT") %>%
+  relocate("SP_INDEX", .after = "PP_TOT_DIST") %>% 
+  mutate(SP_INDEX_inv = SP_INDEX/-1) %>%
+  mutate(NO_TOT_DIST = NO_TRIAL2_TOT_DIST + NO_TRIAL3_TOT_DIST) %>%
+  select(
+  VOLE_ID,
+  TRT,
+  SEX,
+  NO_TOT_DIST,
+  #NO_TRIAL2_OBJ2_TOT_DUR,
+  #NO_TRIAL2_TOT_DIST,
+  #NO_TRIAL3_OBJ2_TOT_DUR,
+  #NO_TRIAL3_TOT_DIST,
+  #OF_DUR_CENTER,
+  OF_TOT_DIST,
+  OF_BOUTS_CENTER,
+  NS_INDEX,
+  NS_TOT_DIST,
+  #NS_DUR_STRANGER,
+  PP_INDEX,
+  PP_TOT_DIST,
+  #PP_PARTNER_TOT_DUR,
+  #SP_INDEX,
+  SP_INDEX_inv,
+  SP_TOT_DIST
+  #SP_DUR_CAGEMATE
+  ) %>% na.omit()
+
+head(BehDat)
+#nrow(BehDat)
+```
+
+
+#Summary  
+```{r}
+kable(do.call(cbind, lapply(BehDat[,5:38], summary)), caption = "Summary Statistics for All Variables", digits = 1, format = 'markdown')
+```
+
+
+#Test of Correlations  
+```{r}
+#Correlations
+
+res2.A <-rcorr(as.matrix(BehDat.cntrl[,4:12]),type = "pearson")
+
+res2.A2 <-rcorr(as.matrix(BehDat[,4:12]),type = "pearson")
+
+res2.F <-rcorr(as.matrix(scale(filter(BehDat,SEX=="F")[,4:13])),type = "pearson")
+res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,4:13])),type = "pearson")
+
+#png(file="corr.png", res=300, width=4500, height=4500)
+
+
+corrplot(res2.A$r, type="upper", #order="hclust", 
+         p.mat = res2.A$P, sig.level = 0.05, insig = "blank")
+
+corrplot(res2.A2$r, type="upper", #order="hclust", 
+         p.mat = res2.A2$P, sig.level = 0.05, insig = "blank")
+
+ctrl.p <- flattenCorrMatrix(res2.A$r, res2.A$P)
+trt.p <- flattenCorrMatrix(res2.A2$r, res2.A2$P)
+
+P <- ctrl.p %>% left_join(trt.p, by=c("row",'column')) %>% select("row","column","cor.x","cor.y") %>% rename("ctrl.p"="cor.x", "trt.p"="cor.y") %>%
+   mutate(F.Z = (.5*sqrt(nrow(BehDat)-3))*((log((1+trt.p)/(1-trt.p))-log((1+ctrl.p)/(1-ctrl.p))))) %>% mutate(F.P = round(1-pnorm(abs(F.Z)),4))
+
+#1-pnorm(1.96)
+```
+
+
+
+#Exploratory  
+```{r}
+#Normality
+for(i in 4:18) {
+qqnorm(scale(filter(BehDat,SEX=="F")[,i]), main = colnames(BehDat)[i])
+abline(0,1)
+}
+
+
+for(i in 4:18) {
+qqnorm(scale(filter(BehDat,SEX=="M")[,i]), main = colnames(BehDat)[i])
+abline(0,1)
+}
+
+
+#Correlations
+
+res2.A <-rcorr(as.matrix(BehDat.cntrl[,4:12]),type = "pearson")
+
+res2.A2 <-rcorr(as.matrix(BehDat[,4:12]),type = "pearson")
+
+res2.F <-rcorr(as.matrix(scale(filter(BehDat,SEX=="F")[,4:13])),type = "pearson")
+res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,4:13])),type = "pearson")
+
+#png(file="corr.png", res=300, width=4500, height=4500)
+
+
+corrplot(res2.A$r, type="upper", #order="hclust", 
+         p.mat = res2.A$P, sig.level = 0.05, insig = "blank")
+
+corrplot(res2.A2$r, type="upper", #order="hclust", 
+         p.mat = res2.A2$P, sig.level = 0.05, insig = "blank")
+
+flattenCorrMatrix(res2.A$r, res2.A$P)
+flattenCorrMatrix(res2.A2$r, res2.A2$P)
+
+
+
+
+corrplot(res2.F$r, type="upper", order="hclust", 
+         p.mat = res2.F$P, sig.level = 0.05, insig = "blank")
+
+corrplot(res2.M$r, type="upper", order="hclust", 
+         p.mat = res2.M$P, sig.level = 0.05, insig = "blank")
+
+corrplot(cor(scale(filter(BehDat,SEX=="M")[,4:18])),  order="hclust")
+
+
+#png(file="panelF.png", res=300, width=4500, height=4500)
+pairs.panels(filter(BehDat,SEX=="F")[,4:18],stars = T)
+
+pairs.panels(filter(BehDat,SEX=="M")[,4:18],stars = T)
+
+
+
+
+#dev.off()
+
+
+
+
+
+
+#OUTLIERS
+
+dat <- filter(BehDat,SEX=="F")[,4:18]
+
+dat <- filter(BehDat,SEX=="M")[,4:18]
+
+psych::outlier(BehDat[,4:13])
+
+md <- mahalanobis(BehDat[,4:13], center = colMeans(BehDat[,4:13]), cov = cov(BehDat[,4:13]))
+
+alpha <- .001
+
+cutoff <- (qchisq(p = 1 - alpha, df = ncol(BehDat[,4:13])))
+
+names_outliers_MH <- which(md > cutoff)
+
+excluded_mh <- names_outliers_MH
+
+data_clean_mh <- BehDat[-excluded_mh, ]
+
+BehDat[excluded_mh, ]
+
+
+```
+
+
+#Exploratory Factor Analysis
+```{r}
+
+BehDat.sF <- filter(BehDat,SEX=="F")[,4:13]
+BehDat.sM <- filter(BehDat,SEX=="M")[,4:13]
+
+
+#Correct Scaling of Variables
+for (i in 1:6) {
+  BehDat.sF[,i] <- max(BehDat.sF[,i])-BehDat.sF[,i]
+}
+
+for (i in 1:3) {
+  BehDat.sM[,i] <- max(BehDat.sM[,i])-BehDat.sM[,i]
+}
+
+
+
+#MALE
+fa.parallel(BehDat[4:13], n.iter = 500, fm = "ml", fa="fa")
+
+out <- factanal(BehDat[4:13], factors = 3)
+out
+
+fa.out.none <- fa(BehDat[4:13], fm="ml",nfactors = 2, rotate="none")
+fa.out.none
+
+out <- factanal(scale(BehDat.sF), factors = 1)
+out
+
+fa.out.none <- fa(scale(BehDat[4:16]), fm="ml",nfactors = 2, rotate="none")
+fa.out.none
+
+out <- factanal(scale(BehDat.sM), factors = 1)
+out
+
+#Raw Scaled Values
+fa.out.none <- fa(BehDat.sM, fm="ml",nfactors = 3, rotate="none")
+fa.out.varimax <- fa(BehDat.sM, fm="ml",nfactors = 3, rotate="varimax")
+fa.out.quartimax <- fa(BehDat.sM, fm="ml",nfactors = 3, rotate="quartimax")
+
+RawResults <- rbind(fa.out.none$TLI,fa.out.none$PVAL,fa.out.none$RMSEA[1])
+rownames(RawResults) <- c("Tucker Lewis Index", "ChiSq Pval","RMSEA")
+
+#par(mfrow= c(1,3))
+fa.diagram(fa.out.none, cut = 0.4, simple = F, main = "No Rotation")
+fa.diagram(fa.out.varimax, cut =0.4, simple = F, main = "Varimax rotation")
+fa.diagram(fa.out.quartimax, cut=0.4, simple = F, main = "Qaurtimax roation")
+
+
+
+
+
+#FEMALE
+fa.parallel(BehDat.sF, n.iter = 100, fm = "ml", fa="fa")
+
+out <- factanal(BehDat.sF, factors = 1)
+out
+
+
+#Raw Scaled Values
+fa.out.none <- fa(BehDat.sF, fm="ml",nfactors = 3, rotate="none")
+fa.out.varimax <- fa(BehDat.sF, fm="ml",nfactors = 3, rotate="varimax")
+fa.out.quartimax <- fa(BehDat.sF, fm="ml",nfactors = 3, rotate="quartimax")
+
+RawResults <- rbind(fa.out.none$TLI,fa.out.none$PVAL,fa.out.none$RMSEA[1])
+rownames(RawResults) <- c("Tucker Lewis Index", "ChiSq Pval","RMSEA")
+
+#par(mfrow= c(1,3))
+fa.diagram(fa.out.none, cut = 0.4, simple = F, main = "No Rotation")
+fa.diagram(fa.out.varimax, cut =0.4, simple = F, main = "Varimax rotation")
+fa.diagram(fa.out.quartimax, cut=0.4, simple = F, main = "Qaurtimax roation")
+```
+
+```{r}
+BehDat.s <- BehDat %>% select(contains("DIST")) %>% mutate(NO_TOTAL_DIST = BEH.NO_TRIAL3_TOT_DIST + BEH.NO_TRIAL2_TOT_DIST, .keep = "unused") %>% scale()
+#BehDat.sM <- filter(BehDat,SEX=="M")[,4:18] %>% scale()
+
+
+
+#MALE
+fa.parallel(BehDat.s, n.iter = 100, fm = "ml", fa="fa")
+
+out <- factanal(BehDat.s, factors = 1)
+out
+B <- out$loadings[,1] %*% t(BehDat.s)
+BehDat$Y <- t(B)
+
+fit <- lm(Y~TRT*SEX, data=BehDat)
+summary(fit)
+summary.aov(fit)
+
+head(BehDat.sF)
+```
+
+
+#Confirmatory Factor Analysis
+```{r}
+
+BehDat.sF <- filter(BehDat,SEX=="F")[,4:13] %>% scale()
+BehDat.sM <- filter(BehDat,SEX=="M")[,4:13] %>% scale()
+
+textModel <-  specifyModel(text="
+##Specification of Anxiety
+ANX   -> NS_DUR_STRANGER,          lambda11,   NA
+ANX   -> NO_TOT_DIST,              lambda21,   NA
+ANX   -> OF_TOT_DIST,              lambda31,   NA
+ANX   -> OF_BOUTS_CENTER,          lambda41,   NA
+ANX   -> NS_TOT_DIST,              lambda51,   NA
+ANX   -> PP_TOT_DIST,              lambda61,   NA
+ANX   -> SP_TOT_DIST,              lambda71,   NA
+##Specification of Social
+SOC   -> NS_INDEX,              lambda12,   NA
+SOC   -> PP_INDEX,              lambda22,   NA
+SOC   -> SP_INDEX_inv,          lambda32,   NA
+##Uniqueness of Variables
+NS_DUR_STRANGER         <->  NS_DUR_STRANGER,           psi1,    NA
+NO_TOT_DIST             <->  NO_TOT_DIST,               psi2,    NA
+OF_TOT_DIST             <->  OF_TOT_DIST,               psi3,    NA
+OF_BOUTS_CENTER         <->  OF_BOUTS_CENTER,           psi4,    NA
+NS_TOT_DIST             <->  NS_TOT_DIST,               psi5,    NA
+PP_TOT_DIST             <->  PP_TOT_DIST,               psi6,    NA
+SP_TOT_DIST             <->  SP_TOT_DIST,               psi7,    NA
+NS_INDEX                <->  NS_INDEX,                  psi8,   NA
+PP_INDEX                <->  PP_INDEX,                  psi9,   NA
+SP_INDEX_inv            <->  SP_INDEX_inv,              psi10,   NA
+##Assumed Fixed Variances of Factors (since data is scaled?)
+ANX   <->   ANX,   NA,  1
+SOC   <->   SOC,   NA,  1
+##Correlation Between Latent Variables
+ANX   <->   SOC,    rho1, NA
+")
+
+#MALE
+riskCov <- cov(BehDat.sF)
+Risk_Model <- sem(model = textModel,
+                  S =riskCov,
+                  N = nrow(BehDat.sM)
+                  )
+
+summary(Risk_Model)
+
+round(Risk_Model$S - Risk_Model$C,2)
+
+max(round(Risk_Model$S - Risk_Model$C,2))
+
+pathDiagram(Risk_Model,
+            ignore.double =  F,
+            edge.labels = "both",
+            file = "Risk_Model_plot",
+            output.type = "dot",
+            node.colors = c("steelblue","transparent"))
+
+grViz("Risk_Model_plot.dot")
+
+
+
+
+
+#FEMALE
+riskCov <- cov(BehDat.sF)
+Risk_Model <- sem(model = textModel,
+                  S =riskCov,
+                  N = nrow(BehDat.sF)
+                  )
+
+summary(Risk_Model)
+
+round(Risk_Model$S - Risk_Model$C,2)
+
+max(round(Risk_Model$S - Risk_Model$C,2))
+
+pathDiagram(Risk_Model,
+            ignore.double =  F,
+            edge.labels = "both",
+            file = "Risk_Model_plot",
+            output.type = "dot",
+            node.colors = c("steelblue","transparent"))
+
+grViz("Risk_Model_plot.dot")
+
+```
+
+
+
+#Combined Data  
+```{r}
+
+
+# neuro2$DoseAmt <- ifelse(TRT=="CTRL", 0, 
+#                          ifelse(TRT=="LOW", 500, 
+#                                 ifelse(TRT=="MED", 1000,
+#                                        ifelse(TRT=="HIGH", 2000, 0))))
+
+
+BehDat <- read.csv("Vole_Comb_combBrain.csv") %>% 
+  #filter(NULL_CHECK == "Complete Data") %>% 
+  relocate("BEH.SP_INDEX", .after = "BEH.PP_TOT_DIST") %>% 
+  filter(TRT != "5MT") %>%
+  mutate(BEH.SP_INDEX_inv = BEH.SP_INDEX/-1) %>%
+  mutate(dose = ifelse(TRT=="CTRL", 0, 
+                         ifelse(TRT=="LOW", 500, 
+                                ifelse(TRT=="MED", 1000,
+                                       ifelse(TRT=="HIGH", 2000, 0))))) %>%
+  select(
+  #VOLE_ID,
+  TRT,
+  dose,
+  SEX,
+  BEH.NO_TRIAL2_OBJ2_TOT_DUR,
+  BEH.NO_TRIAL2_TOT_DIST,
+  BEH.NO_TRIAL3_OBJ2_TOT_DUR,
+  BEH.NO_TRIAL3_TOT_DIST,
+  BEH.OF_DUR_CENTER,
+  BEH.OF_TOT_DIST,
+  BEH.NS_INDEX,
+  BEH.NS_TOT_DIST,
+  #BEH.NS_DUR_STRANGER,
+  BEH.PP_INDEX,
+  BEH.PP_TOT_DIST,
+  #BEH.PP_PARTNER_TOT_DUR,
+  #SP_INDEX,
+  BEH.SP_INDEX_inv,
+  BEH.SP_TOT_DIST,
+  #BEH.SP_DUR_CAGEMATE,
+  BRAIN.AVP_MEDIAL_PVN,
+  BRAIN.OT_MEDIAL_PVN,
+  BRAIN.AVP_SON,
+  BRAIN.OT_SON,
+  BRAIN.TH_BNST,
+  BRAIN.TH_PVN
+  ) %>% na.omit()
+
+head(BehDat)
+```
+
+
+
+
+```{r}
+#Correlations
+res2.F <-rcorr(as.matrix(scale(filter(BehDat,SEX=="F")[,3:20])),type = "pearson")
+res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,3:20])),type = "pearson")
+
+#png(file="corr.png", res=300, width=4500, height=4500)
+
+corrplot(res2.F$r, type="upper", order="hclust", 
+         p.mat = res2.F$P, sig.level = 0.05, insig = "blank")
+
+corrplot(res2.M$r, type="upper", order="hclust", 
+         p.mat = res2.M$P, sig.level = 0.05, insig = "blank")
+
+corrplot(cor(scale(filter(BehDat,SEX=="M")[,3:20]),method = "spearman"),  order="hclust")
+
+
+#png(file="panelF.png", res=300, width=4500, height=4500)
+pairs.panels(filter(BehDat,SEX=="F")[,3:20],stars = T)
+
+pairs.panels(filter(BehDat,SEX=="M")[,3:20],stars = T)
+
+pairs.panels(select(BehDat, Y, BEH.NS_INDEX, BEH.PP_INDEX, BEH.SP_INDEX_inv, TRT, SEX),stars = T)
+
+plot(BehDat$dose, BehDat$BEH.NS_INDEX)
+plot
+```
+
+
+```{r}
+BehDat.s <- BehDat %>% select(contains("DIST")) %>% mutate(NO_TOTAL_DIST = BEH.NO_TRIAL3_TOT_DIST + BEH.NO_TRIAL2_TOT_DIST, .keep = "unused")
+#BehDat.sM <- filter(BehDat,SEX=="M")[,4:18] %>% scale()
+
+
+
+#MALE
+fa.parallel(BehDat.s, n.iter = 100, fm = "ml", fa="fa")
+
+out <- factanal(BehDat.s, factors = 1)
+out
+B <- out$loadings[,1] %*% t(BehDat.s)
+BehDat$Y <- t(B)
+
+fit <- lm(Y~TRT*SEX, data=BehDat)
+summary(fit)
+summary.aov(fit)
+
+
+
+#Normality
+for(i in 3:21) {
+qqnorm(scale(filter(BehDat,SEX=="F")[,i]))
+abline(0,1)
+}
+
+
+for(i in 3:21) {
+qqnorm(scale(filter(BehDat,SEX=="M")[,i]))
+abline(0,1)
+}
+
+#BRAIN.AVP_MEDIAL_PVN, BRAIN.OT_MEDIAL_PVN, BRAIN.AVP_SON, BRAIN.OT_SON, BRAIN.TH_BNST, BRAIN.TH_PVN
+fit <- manova(cbind(Y, BEH.NS_INDEX, BEH.PP_INDEX, BEH.SP_INDEX_inv) ~ TRT*SEX, data=BehDat)
+summary(fit)
+summary.aov(fit)
+
+fit <- manova(cbind(Y, BEH.NS_INDEX, BEH.PP_INDEX, BEH.SP_INDEX_inv) ~ TRT*SEX, data=BehDat)
+summary(fit)
+summary.aov(fit)
+
+
+
+fit <- manova(response ~ unit, data=plots)
+
+
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+    )
+}
+
+ dat.F <- BehDat %>% filter(SEX=="F") %>% select(
+                             Y, 
+                             BEH.NS_INDEX, 
+                             BEH.PP_INDEX, 
+                             BEH.SP_INDEX_inv,
+                             BRAIN.AVP_MEDIAL_PVN,
+                             BRAIN.OT_MEDIAL_PVN,
+                             BRAIN.AVP_SON,
+                             BRAIN.OT_SON,
+                             BRAIN.TH_BNST,
+                             BRAIN.TH_PVN)
+
+
+
+res2.F <-rcorr(as.matrix(dat.F), type = "pearson")
+#flattenCorrMatrix(res2.F$r, res2.F$P)
+
+corrplot(res2.F$r, type="upper", order="hclust", 
+         p.mat = res2.F$P, sig.level = 0.05, insig = "blank")
+
+ dat.M <- BehDat %>% filter(SEX=="M") %>% select(
+                             Y, 
+                             BEH.NS_INDEX, 
+                             BEH.PP_INDEX, 
+                             BEH.SP_INDEX_inv,
+                             BRAIN.AVP_MEDIAL_PVN,
+                             BRAIN.OT_MEDIAL_PVN,
+                             BRAIN.AVP_SON,
+                             BRAIN.OT_SON,
+                             BRAIN.TH_BNST,
+                             BRAIN.TH_PVN)
+
+
+
+res2.M <-rcorr(as.matrix(dat.M),type = "pearson")
+#flattenCorrMatrix(res2.M$r, res2.M$P)
+
+corrplot(res2.M$r, type="upper", order="hclust",
+         p.mat = res2.M$P, sig.level = 0.05, insig = "blank")
+
+
+for(i in 1:10) {
+qqnorm(scale(dat.F[,i]), main = colnames(dat.F)[i])
+abline(0,1)
+}
+
+
+for(i in 1:10) {
+qqnorm(scale(dat.M[,i]), main = colnames(dat.M)[i])
+abline(0,1)
+}
+
+
+#OUTLIERS
+
+psych::outlier(dat.M[2:10])
+
+md <- mahalanobis(dat, center = colMeans(dat), cov = cov(dat))
+
+alpha <- .001
+
+cutoff <- (qchisq(p = 1 - alpha, df = ncol(dat)))
+
+names_outliers_MH <- which(md > cutoff)
+
+excluded_mh <- names_outliers_MH
+
+data_clean_mh <- BehDat[-excluded_mh, ]
+
+BehDat[excluded_mh, ]
+
+head(BehDat)
+```
+
+
+#Regression on all variables?
+```{r}
+Lm1 <- lm(BEH.NS_INDEX~ (Y + TRT + SEX + BEH.PP_INDEX + 
+                            + BEH.SP_INDEX_inv
+                            + BRAIN.AVP_MEDIAL_PVN
+                            + BRAIN.OT_MEDIAL_PVN
+                            + BRAIN.AVP_SON
+                            + BRAIN.OT_SON
+                            + BRAIN.TH_BNST
+                            + BRAIN.TH_PVN)^2,
+          data = BehDat)
+
+summary(Lm1)
+```
+
+
+
+
+#Combined with individual Brain Voles  
+```{r}
+BehDat <- read.csv("Vole_Comb_indBrain.csv") %>% 
+  #filter(NULL_CHECK == "Complete Data") %>% 
+  relocate("BEH.SP_INDEX", .after = "BEH.PP_TOT_DIST") %>% 
+  mutate(BEH.SP_INDEX_inv = BEH.SP_INDEX/-1) %>%
+  filter(TRT != "5MT") %>%
+  select(
+  VOLE_ID,
+  TRT,
+  SEX,
+  BEH.NO_TRIAL2_OBJ2_TOT_DUR,
+  BEH.NO_TRIAL2_TOT_DIST,
+  BEH.NO_TRIAL3_OBJ2_TOT_DUR,
+  BEH.NO_TRIAL3_TOT_DIST,
+  BEH.OF_DUR_CENTER,
+  BEH.OF_TOT_DIST,
+  BEH.NS_INDEX,
+  BEH.NS_TOT_DIST,
+  #BEH.NS_DUR_STRANGER,
+  BEH.PP_INDEX,
+  BEH.PP_TOT_DIST,
+  #BEH.PP_PARTNER_TOT_DUR,
+  #SP_INDEX,
+  BEH.SP_INDEX_inv,
+  BEH.SP_TOT_DIST,
+  #BEH.SP_DUR_CAGEMATE,
+  AVP_MEDIAL_PVN,
+  OT_MEDIAL_PVN,
+  AVP_SON,
+  OT_SON,
+  TH_BNST,
+  TH_PVN
+  ) %>% na.omit()
+
+head(BehDat)
+```
+
+
+```{r}
+
+res2.F<-rcorr(as.matrix(scale(filter(BehDat,SEX=="F")[,4:21])))
+
+corrplot(res2.F$r, type="upper", order="hclust", 
+         p.mat = res2.F$P, sig.level = 0.05,insig = "blank")
+
+corrplot(cor(scale(filter(BehDat,SEX=="M")[,3:20])),  order="hclust")
+
+
+#png(file="panelF.png", res=300, width=4500, height=4500)
+pairs.panels(filter(BehDat,SEX=="F")[,3:20],stars = T)
+
+pairs.panels(filter(BehDat,SEX=="M")[,3:20],stars = T)
+
+Vole_Neuro_R
+```
+
+```{r}
+NDat <- read.csv("Vole_Neuro_R.csv") %>% 
+#NDat.c <- read.csv("Vole_Neuro_R.csv") %>% 
+#NDat.t <- read.csv("Vole_Neuro_R.csv") %>% 
+  #filter(NULL_CHECK == "Complete Data") %>% 
+  #relocate("BEH.SP_INDEX", .after = "BEH.PP_TOT_DIST") %>% 
+  #mutate(BEH.SP_INDEX_inv = BEH.SP_INDEX/-1) %>%
+  #filter(TRT == "CTRL") %>%
+  #filter(TRT != "5MT" & TRT != "CTRL") %>%
+  filter(TRT != "5MT") %>%
+  select(
+  VOLE_ID,
+  TRT,
+  SEX,
+  AVP_MEDIAL_PVN,
+  OT_MEDIAL_PVN,
+  AVP_SON,
+  OT_SON,
+  TH_BNST,
+  TH_PVN
+  ) %>% na.omit()
+
+head(NDat)
+```
+
+
+```{r}
+#Correlations
+
+res2.N1 <-rcorr(as.matrix(NDat.c[,4:9]),type = "pearson")
+
+res2.N2 <-rcorr(as.matrix(NDat.t[,4:9]),type = "pearson")
+
+corrplot(res2.N1$r, type="upper", #order="hclust", 
+         p.mat = res2.N1$P, sig.level = 0.05, insig = "blank")
+
+corrplot(res2.N2$r, type="upper", #order="hclust", 
+         p.mat = res2.N2$P, sig.level = 0.05, insig = "blank")
+
+ctrl.p <- flattenCorrMatrix(res2.A$r, res2.A$P)
+trt.p <- flattenCorrMatrix(res2.A2$r, res2.A2$P)
+
+P <- ctrl.p %>% left_join(trt.p, by=c("row",'column')) %>% select("row","column","cor.x","cor.y") %>% rename("ctrl.p"="cor.x", "trt.p"="cor.y") %>%
+   mutate(F.Z = (.5*sqrt(nrow(BehDat)-3))*((log((1+trt.p)/(1-trt.p))-log((1+ctrl.p)/(1-ctrl.p))))) %>% mutate(F.P = round(1-pnorm(abs(F.Z)),4))
+
+
+
+
+fit <- manova(cbind(AVP_MEDIAL_PVN,OT_MEDIAL_PVN,AVP_SON,OT_SON,TH_BNST,TH_PVN) ~ TRT*SEX, data=NDat)
+
+summary(fit)
+```
+
+
+
+
+
