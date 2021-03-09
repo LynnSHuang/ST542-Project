@@ -1,0 +1,36 @@
+digraph "Risk_Model" {
+  rankdir=LR;
+  size="8,8";
+  node [fontname="Helvetica" fontsize=14 fillcolor="steelblue" shape=box style=filled];
+  edge [fontname="Helvetica" fontsize=10];
+  center=1;
+  "ANX" [shape=ellipse]
+  "SOC" [shape=ellipse]
+  "NO_TOT_DIST" [fillcolor="transparent"]
+  "OF_TOT_DIST" [fillcolor="transparent"]
+  "OF_BOUTS_CENTER" [fillcolor="transparent"]
+  "NS_TOT_DIST" [fillcolor="transparent"]
+  "PP_TOT_DIST" [fillcolor="transparent"]
+  "SP_TOT_DIST" [fillcolor="transparent"]
+  "PP_INDEX" [fillcolor="transparent"]
+  "SP_INDEX_inv" [fillcolor="transparent"]
+  "ANX" -> "NO_TOT_DIST" [label="lambda11=0.68" color=black penwidth=1.001];
+  "ANX" -> "OF_TOT_DIST" [label="lambda21=0.67" color=black penwidth=1.001];
+  "ANX" -> "OF_BOUTS_CENTER" [label="lambda31=0.33" color=black penwidth=1.001];
+  "ANX" -> "NS_TOT_DIST" [label="lambda41=0.69" color=black penwidth=1.001];
+  "ANX" -> "PP_TOT_DIST" [label="lambda51=0.77" color=black penwidth=1.001];
+  "ANX" -> "SP_TOT_DIST" [label="lambda61=0.84" color=black penwidth=1.001];
+  "SOC" -> "PP_INDEX" [label="lambda22=0.34" color=black penwidth=1.001];
+  "SOC" -> "SP_INDEX_inv" [label="lambda32=0.34" color=black penwidth=1.001];
+  "NO_TOT_DIST" -> "NO_TOT_DIST" [label="psi1=0.54" dir=both color=black penwidth=1.001];
+  "OF_TOT_DIST" -> "OF_TOT_DIST" [label="psi2=0.56" dir=both color=black penwidth=1.001];
+  "OF_BOUTS_CENTER" -> "OF_BOUTS_CENTER" [label="psi3=0.89" dir=both color=black penwidth=1.001];
+  "NS_TOT_DIST" -> "NS_TOT_DIST" [label="psi4=0.52" dir=both color=black penwidth=1.001];
+  "PP_TOT_DIST" -> "PP_TOT_DIST" [label="psi5=0.4" dir=both color=black penwidth=1.001];
+  "SP_TOT_DIST" -> "SP_TOT_DIST" [label="psi6=0.3" dir=both color=black penwidth=1.001];
+  "PP_INDEX" -> "PP_INDEX" [label="psi8=0.88" dir=both color=black penwidth=1.001];
+  "SP_INDEX_inv" -> "SP_INDEX_inv" [label="psi9=0.88" dir=both color=black penwidth=1.001];
+  "ANX" -> "ANX" [label="1=1" dir=both color=black penwidth=1.001];
+  "SOC" -> "SOC" [label="1=1" dir=both color=black penwidth=1.001];
+  "ANX" -> "SOC" [label="rho1=0.74" dir=both color=black penwidth=1.001];
+}

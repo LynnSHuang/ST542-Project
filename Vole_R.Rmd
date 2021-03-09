@@ -24,6 +24,8 @@ library(gbm) #Logistic classifies for caret and other packages
 library(DiagrammeR)
 library(rattle)
 library(Hmisc)
+library(lavaan)
+
 ```
 
 
@@ -32,8 +34,9 @@ library(Hmisc)
   #BehDat <- read.csv("Vole_Beh_R.csv") %>% 
   BehDat.cntrl <- read.csv("Vole_Beh_R.csv") %>% 
   #filter(NULL_CHECK == "Complete Data") %>% 
-  filter(TRT == "CTRL") %>%
+  #filter(TRT == "CTRL") %>%
   #filter(TRT != "CTRL"&TRT != "5MT") %>%
+  filter(TRT != "5MT") %>%
   relocate("SP_INDEX", .after = "PP_TOT_DIST") %>% 
   mutate(SP_INDEX_inv = SP_INDEX/-1) %>%
   mutate(NO_TOT_DIST = NO_TRIAL2_TOT_DIST + NO_TRIAL3_TOT_DIST) %>%
@@ -49,7 +52,7 @@ library(Hmisc)
   #OF_DUR_CENTER,
   OF_TOT_DIST,
   OF_BOUTS_CENTER,
-  NS_INDEX,
+  #NS_INDEX,
   NS_TOT_DIST,
   #NS_DUR_STRANGER,
   PP_INDEX,
@@ -61,9 +64,59 @@ library(Hmisc)
   #SP_DUR_CAGEMATE
   ) %>% na.omit()
 
-head(BehDat)
+head(BehDat.cntrl)
 #nrow(BehDat)
 ```
+
+
+```{r}
+  BehDat <- read.csv("Vole_Beh_R_Supp.csv") %>% 
+  #BehDat.cntrl <- read.csv("Vole_Beh_R.csv") %>% 
+  #filter(NULL_CHECK == "Complete Data") %>% 
+  #filter(TRT == "CTRL") %>%
+  #filter(TRT != "CTRL"&TRT != "5MT") %>%
+  filter(TRT != "5MT") %>%
+  relocate("SP_INDEX", .after = "PP_TOT_DIST") %>% 
+  mutate(SP_INDEX_inv = SP_INDEX/-1) %>%
+  mutate(NO_TOT_DIST = NO_TRIAL2_TOT_DIST + NO_TRIAL3_TOT_DIST) %>%
+  select(
+  VOLE_ID,
+  TRT,
+  SEX,
+  NO_TOT_DIST,
+  #NO_TRIAL2_OBJ2_TOT_DUR,
+  #NO_TRIAL2_TOT_DIST,
+  #NO_TRIAL3_OBJ2_TOT_DUR,
+  #NO_TRIAL3_TOT_DIST,
+  OF_DUR_CENTER,
+  OF_TOT_DIST,
+  OF_BOUTS_CENTER,
+  NS_INDEX,
+  NS_TOT_DIST,
+  NS_DUR_STRANGER,
+  PP_INDEX,
+  PP_TOT_DIST,
+  PP_PARTNER_TOT_DUR,
+  #SP_INDEX,
+  SP_INDEX_inv,
+  SP_TOT_DIST,
+  SP_DUR_CAGEMATE,
+  OF_Dur_Corner,
+  OF_Lat,
+  OF_Dur_Corner,
+  OF_droppings,
+  NS_droppings,
+  NS_Dur_NoCup,
+  SP_droppings,
+  SP_Dur_Neutral,
+  PP_droppings,
+  PP_Duration_Neutral,
+  PP_Partner_Dur_Fin
+  ) %>% na.omit()
+
+head(BehDat)
+```
+
 
 
 #Summary  
@@ -78,7 +131,7 @@ kable(do.call(cbind, lapply(BehDat[,5:38], summary)), caption = "Summary Statist
 
 res2.A <-rcorr(as.matrix(BehDat.cntrl[,4:12]),type = "pearson")
 
-res2.A2 <-rcorr(as.matrix(BehDat[,4:12]),type = "pearson")
+res2.A2 <-rcorr(as.matrix(BehDat[,4:26]),type = "pearson")
 
 res2.F <-rcorr(as.matrix(scale(filter(BehDat,SEX=="F")[,4:13])),type = "pearson")
 res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,4:13])),type = "pearson")
@@ -89,7 +142,7 @@ res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,4:13])),type = "pearson"
 corrplot(res2.A$r, type="upper", #order="hclust", 
          p.mat = res2.A$P, sig.level = 0.05, insig = "blank")
 
-corrplot(res2.A2$r, type="upper", #order="hclust", 
+corrplot(res2.A2$r, type="upper", order="alphabet", 
          p.mat = res2.A2$P, sig.level = 0.05, insig = "blank")
 
 ctrl.p <- flattenCorrMatrix(res2.A$r, res2.A$P)
@@ -211,9 +264,9 @@ for (i in 1:3) {
 
 
 #MALE
-fa.parallel(BehDat[4:13], n.iter = 500, fm = "ml", fa="fa")
+fa.parallel(BehDat[,4:26], n.iter = 500, fm = "ml", fa="fa")
 
-out <- factanal(BehDat[4:13], factors = 3)
+out <- factanal(scale(BehDat[,4:26]), factors = 5)
 out
 
 fa.out.none <- fa(BehDat[4:13], fm="ml",nfactors = 2, rotate="none")
@@ -293,31 +346,34 @@ head(BehDat.sF)
 
 BehDat.sF <- filter(BehDat,SEX=="F")[,4:13] %>% scale()
 BehDat.sM <- filter(BehDat,SEX=="M")[,4:13] %>% scale()
+BehDat.cntrl <- BehDat.cntrl[,4:11] %>% mutate_if(is.numeric, scale)
+
+
+# c(4,5,6,7,9,11) c(1,2,3,4,6,8)
+for (i in c(1,2,3,4,6,8)) {
+  BehDat.cntrl[,i] <- max(BehDat.cntrl[,i])-BehDat.cntrl[,i]
+}
 
 textModel <-  specifyModel(text="
 ##Specification of Anxiety
-ANX   -> NS_DUR_STRANGER,          lambda11,   NA
-ANX   -> NO_TOT_DIST,              lambda21,   NA
-ANX   -> OF_TOT_DIST,              lambda31,   NA
-ANX   -> OF_BOUTS_CENTER,          lambda41,   NA
-ANX   -> NS_TOT_DIST,              lambda51,   NA
-ANX   -> PP_TOT_DIST,              lambda61,   NA
-ANX   -> SP_TOT_DIST,              lambda71,   NA
+ANX   -> NO_TOT_DIST,              lambda11,   NA
+ANX   -> OF_TOT_DIST,              lambda21,   NA
+ANX   -> OF_BOUTS_CENTER,          lambda31,   NA
+ANX   -> NS_TOT_DIST,              lambda41,   NA
+ANX   -> PP_TOT_DIST,              lambda51,   NA
+ANX   -> SP_TOT_DIST,              lambda61,   NA
 ##Specification of Social
-SOC   -> NS_INDEX,              lambda12,   NA
 SOC   -> PP_INDEX,              lambda22,   NA
 SOC   -> SP_INDEX_inv,          lambda32,   NA
 ##Uniqueness of Variables
-NS_DUR_STRANGER         <->  NS_DUR_STRANGER,           psi1,    NA
-NO_TOT_DIST             <->  NO_TOT_DIST,               psi2,    NA
-OF_TOT_DIST             <->  OF_TOT_DIST,               psi3,    NA
-OF_BOUTS_CENTER         <->  OF_BOUTS_CENTER,           psi4,    NA
-NS_TOT_DIST             <->  NS_TOT_DIST,               psi5,    NA
-PP_TOT_DIST             <->  PP_TOT_DIST,               psi6,    NA
-SP_TOT_DIST             <->  SP_TOT_DIST,               psi7,    NA
-NS_INDEX                <->  NS_INDEX,                  psi8,   NA
-PP_INDEX                <->  PP_INDEX,                  psi9,   NA
-SP_INDEX_inv            <->  SP_INDEX_inv,              psi10,   NA
+NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
+OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
+OF_BOUTS_CENTER         <->  OF_BOUTS_CENTER,           psi3,    NA
+NS_TOT_DIST             <->  NS_TOT_DIST,               psi4,    NA
+PP_TOT_DIST             <->  PP_TOT_DIST,               psi5,    NA
+SP_TOT_DIST             <->  SP_TOT_DIST,               psi6,    NA
+PP_INDEX                <->  PP_INDEX,                  psi8,   NA
+SP_INDEX_inv            <->  SP_INDEX_inv,              psi9,   NA
 ##Assumed Fixed Variances of Factors (since data is scaled?)
 ANX   <->   ANX,   NA,  1
 SOC   <->   SOC,   NA,  1
@@ -325,14 +381,29 @@ SOC   <->   SOC,   NA,  1
 ANX   <->   SOC,    rho1, NA
 ")
 
+
+#NS_INDEX                <->  NS_INDEX,                  psi7,   NA
+#SOC   -> NS_INDEX,              lambda12,   NA
+
+
+BehDat.cntrl <- data.frame(scale(BehDat.cntrl))
+
 #MALE
-riskCov <- cov(BehDat.sF)
-Risk_Model <- sem(model = textModel,
-                  S =riskCov,
-                  N = nrow(BehDat.sM)
+riskCov <- cov(scale(BehDat.cntrl))
+Risk_Model <- sem::sem(model = textModel,
+                  data = BehDat.cntrl
+                  #group='SEX'
+                  #groups = c('M','F')
+                  #S =riskCov,
+                  #N = nrow(BehDat.cntrl)
                   )
 
-summary(Risk_Model)
+A <- summary(Risk_Model)
+
+summary(Risk_Model, fit.indices=c("GFI", "AGFI", "RMSEA", "NFI", "NNFI", "CFI", "RNI",
+"IFI", "SRMR", "AIC", "AICc", "BIC", "CAIC"))
+
+a$RMSEA
 
 round(Risk_Model$S - Risk_Model$C,2)
 
@@ -348,30 +419,17 @@ pathDiagram(Risk_Model,
 grViz("Risk_Model_plot.dot")
 
 
+FS <- fscores(Risk_Model)
 
+newdat <- cbind(BehDat.cntrl[,1:3],FS)
 
+fit <- lm(cbind(ANX,SOC)~TRT*SEX, data=newdat)
+summary(fit)
 
-#FEMALE
-riskCov <- cov(BehDat.sF)
-Risk_Model <- sem(model = textModel,
-                  S =riskCov,
-                  N = nrow(BehDat.sF)
-                  )
+fit <- manova(cbind(ANX,SOC)~TRT*SEX, data=newdat)
+summary(fit)
 
-summary(Risk_Model)
-
-round(Risk_Model$S - Risk_Model$C,2)
-
-max(round(Risk_Model$S - Risk_Model$C,2))
-
-pathDiagram(Risk_Model,
-            ignore.double =  F,
-            edge.labels = "both",
-            file = "Risk_Model_plot",
-            output.type = "dot",
-            node.colors = c("steelblue","transparent"))
-
-grViz("Risk_Model_plot.dot")
+summary.aov(fit)
 
 ```
 
