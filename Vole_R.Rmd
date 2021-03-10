@@ -32,6 +32,7 @@ library(lavaan)
 #Data Import  
 ```{r}
   #BehDat <- read.csv("Vole_Beh_R.csv") %>% 
+  #BehDat.dist <- read.csv("Vole_Beh_R.csv") %>% 
   BehDat.cntrl <- read.csv("Vole_Beh_R.csv") %>% 
   #filter(NULL_CHECK == "Complete Data") %>% 
   #filter(TRT == "CTRL") %>%
@@ -40,10 +41,18 @@ library(lavaan)
   relocate("SP_INDEX", .after = "PP_TOT_DIST") %>% 
   mutate(SP_INDEX_inv = SP_INDEX/-1) %>%
   mutate(NO_TOT_DIST = NO_TRIAL2_TOT_DIST + NO_TRIAL3_TOT_DIST) %>%
+  #mutate(TOT_DIST = NO_TOT_DIST + OF_TOT_DIST  + NS_TOT_DIST + PP_TOT_DIST + SP_TOT_DIST) %>%
+  mutate(bidose = ifelse(TRT=="CTRL", "CTRL","TRT")) %>%
+  # mutate(dose = ifelse(TRT=="CTRL", 0, 
+  #                        ifelse(TRT=="LOW", 500, 
+  #                               ifelse(TRT=="MED", 1000,
+  #                                      ifelse(TRT=="HIGH", 2000, 0))))) %>%
   select(
   VOLE_ID,
   TRT,
   SEX,
+  bidose,
+  #TOT_DIST
   NO_TOT_DIST,
   #NO_TRIAL2_OBJ2_TOT_DUR,
   #NO_TRIAL2_TOT_DIST,
@@ -51,7 +60,7 @@ library(lavaan)
   #NO_TRIAL3_TOT_DIST,
   #OF_DUR_CENTER,
   OF_TOT_DIST,
-  OF_BOUTS_CENTER,
+  #OF_BOUTS_CENTER,
   #NS_INDEX,
   NS_TOT_DIST,
   #NS_DUR_STRANGER,
@@ -79,39 +88,24 @@ head(BehDat.cntrl)
   relocate("SP_INDEX", .after = "PP_TOT_DIST") %>% 
   mutate(SP_INDEX_inv = SP_INDEX/-1) %>%
   mutate(NO_TOT_DIST = NO_TRIAL2_TOT_DIST + NO_TRIAL3_TOT_DIST) %>%
+  mutate(SP_MinCon = min(c(SP_LAT_CAGEMATE,SP_LAT_STRANGER))) %>%
   select(
   VOLE_ID,
   TRT,
   SEX,
   NO_TOT_DIST,
-  #NO_TRIAL2_OBJ2_TOT_DUR,
-  #NO_TRIAL2_TOT_DIST,
-  #NO_TRIAL3_OBJ2_TOT_DUR,
-  #NO_TRIAL3_TOT_DIST,
-  OF_DUR_CENTER,
   OF_TOT_DIST,
-  OF_BOUTS_CENTER,
-  NS_INDEX,
   NS_TOT_DIST,
-  NS_DUR_STRANGER,
-  PP_INDEX,
   PP_TOT_DIST,
-  PP_PARTNER_TOT_DUR,
-  #SP_INDEX,
-  SP_INDEX_inv,
   SP_TOT_DIST,
-  SP_DUR_CAGEMATE,
   OF_Dur_Corner,
   OF_Lat,
-  OF_Dur_Corner,
-  OF_droppings,
-  NS_droppings,
+  #Social
   NS_Dur_NoCup,
-  SP_droppings,
-  SP_Dur_Neutral,
-  PP_droppings,
+  PP_INDEX,
   PP_Duration_Neutral,
-  PP_Partner_Dur_Fin
+  SP_INDEX_inv,
+  SP_Dur_Neutral
   ) %>% na.omit()
 
 head(BehDat)
@@ -131,7 +125,7 @@ kable(do.call(cbind, lapply(BehDat[,5:38], summary)), caption = "Summary Statist
 
 res2.A <-rcorr(as.matrix(BehDat.cntrl[,4:12]),type = "pearson")
 
-res2.A2 <-rcorr(as.matrix(BehDat[,4:26]),type = "pearson")
+res2.A2 <-rcorr(as.matrix(scale(BehDat[,4:15])),type = "pearson")
 
 res2.F <-rcorr(as.matrix(scale(filter(BehDat,SEX=="F")[,4:13])),type = "pearson")
 res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,4:13])),type = "pearson")
@@ -142,8 +136,9 @@ res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,4:13])),type = "pearson"
 corrplot(res2.A$r, type="upper", #order="hclust", 
          p.mat = res2.A$P, sig.level = 0.05, insig = "blank")
 
-corrplot(res2.A2$r, type="upper", order="alphabet", 
+corrplot(res2.A2$r, type="upper", order="hclust", 
          p.mat = res2.A2$P, sig.level = 0.05, insig = "blank")
+
 
 ctrl.p <- flattenCorrMatrix(res2.A$r, res2.A$P)
 trt.p <- flattenCorrMatrix(res2.A2$r, res2.A2$P)
@@ -338,6 +333,20 @@ summary(fit)
 summary.aov(fit)
 
 head(BehDat.sF)
+
+
+
+
+fit1 <- lm(TOT_DIST~TRT*SEX, data=BehDat)
+summary(fit1)
+
+fit2 <- lm(TOT_DIST~bidose*SEX, data=BehDat)
+summary(fit2)
+
+stats::anova(fit2,fit1)
+
+kable(table(BehDat$TRT, BehDat$SEX))
+
 ```
 
 
@@ -346,11 +355,11 @@ head(BehDat.sF)
 
 BehDat.sF <- filter(BehDat,SEX=="F")[,4:13] %>% scale()
 BehDat.sM <- filter(BehDat,SEX=="M")[,4:13] %>% scale()
-BehDat.cntrl <- BehDat.cntrl[,4:11] %>% mutate_if(is.numeric, scale)
+BehDat.cntrl <- BehDat.cntrl[,5:11] #%>% mutate_if(is.numeric, scale)
 
 
 # c(4,5,6,7,9,11) c(1,2,3,4,6,8)
-for (i in c(1,2,3,4,6,8)) {
+for (i in c(1,2,3,5,7)) {
   BehDat.cntrl[,i] <- max(BehDat.cntrl[,i])-BehDat.cntrl[,i]
 }
 
@@ -358,7 +367,6 @@ textModel <-  specifyModel(text="
 ##Specification of Anxiety
 ANX   -> NO_TOT_DIST,              lambda11,   NA
 ANX   -> OF_TOT_DIST,              lambda21,   NA
-ANX   -> OF_BOUTS_CENTER,          lambda31,   NA
 ANX   -> NS_TOT_DIST,              lambda41,   NA
 ANX   -> PP_TOT_DIST,              lambda51,   NA
 ANX   -> SP_TOT_DIST,              lambda61,   NA
@@ -368,7 +376,6 @@ SOC   -> SP_INDEX_inv,          lambda32,   NA
 ##Uniqueness of Variables
 NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
 OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
-OF_BOUTS_CENTER         <->  OF_BOUTS_CENTER,           psi3,    NA
 NS_TOT_DIST             <->  NS_TOT_DIST,               psi4,    NA
 PP_TOT_DIST             <->  PP_TOT_DIST,               psi5,    NA
 SP_TOT_DIST             <->  SP_TOT_DIST,               psi6,    NA
@@ -381,17 +388,24 @@ SOC   <->   SOC,   NA,  1
 ANX   <->   SOC,    rho1, NA
 ")
 
-
+#SOC   -> PP_TOT_DIST,           lambda42,   NA
+#SOC   -> SP_TOT_DIST,           lambda52,   NA
 #NS_INDEX                <->  NS_INDEX,                  psi7,   NA
 #SOC   -> NS_INDEX,              lambda12,   NA
-
+#OF_BOUTS_CENTER         <->  OF_BOUTS_CENTER,           psi3,    NA
+#ANX   -> OF_BOUTS_CENTER,          lambda31,   NA
 
 BehDat.cntrl <- data.frame(scale(BehDat.cntrl))
+
+BehDat.cntrl <- cbind(SEX = BehDat[,3],BehDat.cntrl)
+
+BehDat.cntrl$SEX <- as.factor(BehDat.cntrl$SEX)
 
 #MALE
 riskCov <- cov(scale(BehDat.cntrl))
 Risk_Model <- sem::sem(model = textModel,
-                  data = BehDat.cntrl
+                  data = BehDat.cntrl,
+                  standardized = T
                   #group='SEX'
                   #groups = c('M','F')
                   #S =riskCov,
@@ -421,10 +435,22 @@ grViz("Risk_Model_plot.dot")
 
 FS <- fscores(Risk_Model)
 
-newdat <- cbind(BehDat.cntrl[,1:3],FS)
+newdat <- cbind(BehDat[,1:4],FS)
 
-fit <- lm(cbind(ANX,SOC)~TRT*SEX, data=newdat)
-summary(fit)
+fit1.A <- lm(ANX~TRT*SEX, data=newdat)
+summary(fit1.A)
+
+fit1.S <- lm(SOC~TRT*SEX, data=newdat)
+summary(fit1.S)
+
+fit2.A <- lm(ANX~bidose*SEX, data=newdat)
+summary(fit2.A)
+
+fit2.S <- lm(SOC~bidose*SEX, data=newdat)
+summary(fit2.S)
+
+stats::anova(fit2.A,fit1.A)
+stats::anova(fit2.S,fit1.S)
 
 fit <- manova(cbind(ANX,SOC)~TRT*SEX, data=newdat)
 summary(fit)
@@ -733,16 +759,20 @@ NDat <- read.csv("Vole_Neuro_R.csv") %>%
   #filter(TRT == "CTRL") %>%
   #filter(TRT != "5MT" & TRT != "CTRL") %>%
   filter(TRT != "5MT") %>%
+  mutate(bidose = ifelse(TRT=="CTRL", "CTRL","TRT")) %>%
+  mutate(NTot = AVP_MEDIAL_PVN + OT_MEDIAL_PVN + AVP_SON + OT_SON + TH_BNST + TH_PVN) %>%
   select(
   VOLE_ID,
   TRT,
   SEX,
+  bidose,
   AVP_MEDIAL_PVN,
   OT_MEDIAL_PVN,
   AVP_SON,
   OT_SON,
   TH_BNST,
-  TH_PVN
+  TH_PVN,
+  NTot
   ) %>% na.omit()
 
 head(NDat)
@@ -752,7 +782,7 @@ head(NDat)
 ```{r}
 #Correlations
 
-res2.N1 <-rcorr(as.matrix(NDat.c[,4:9]),type = "pearson")
+res2.N1 <-rcorr(as.matrix(scale(NDat[,4:9])),type = "pearson")
 
 res2.N2 <-rcorr(as.matrix(NDat.t[,4:9]),type = "pearson")
 
@@ -772,6 +802,18 @@ P <- ctrl.p %>% left_join(trt.p, by=c("row",'column')) %>% select("row","column"
 
 
 fit <- manova(cbind(AVP_MEDIAL_PVN,OT_MEDIAL_PVN,AVP_SON,OT_SON,TH_BNST,TH_PVN) ~ TRT*SEX, data=NDat)
+
+summary(fit)
+
+fit <- lm(cbind(AVP_MEDIAL_PVN,OT_MEDIAL_PVN,AVP_SON,OT_SON,TH_BNST,TH_PVN) ~ TRT*SEX, data=NDat)
+
+summary(fit)
+
+fit <- lm(NTot ~ TRT*SEX, data=NDat)
+
+summary(fit)
+
+fit <- lm(NTot ~ bidose*SEX, data=NDat)
 
 summary(fit)
 ```
