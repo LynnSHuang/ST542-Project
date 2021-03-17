@@ -25,345 +25,591 @@ library(DiagrammeR)
 library(rattle)
 library(Hmisc)
 library(lavaan)
-
+library(MVN)
+library(GPArotation)
+#library(MASS)
 ```
 
 
 #Data Import  
 ```{r}
-  #BehDat <- read.csv("Vole_Beh_R.csv") %>% 
-  #BehDat.dist <- read.csv("Vole_Beh_R.csv") %>% 
-  BehDat.cntrl <- read.csv("Vole_Beh_R.csv") %>% 
-  #filter(NULL_CHECK == "Complete Data") %>% 
-  #filter(TRT == "CTRL") %>%
-  #filter(TRT != "CTRL"&TRT != "5MT") %>%
+  BehDat.cntrl <- read.csv("Vole_Beh_R_Supp.csv") %>%
   filter(TRT != "5MT") %>%
-  relocate("SP_INDEX", .after = "PP_TOT_DIST") %>% 
   mutate(SP_INDEX_inv = SP_INDEX/-1) %>%
   mutate(NO_TOT_DIST = NO_TRIAL2_TOT_DIST + NO_TRIAL3_TOT_DIST) %>%
-  #mutate(TOT_DIST = NO_TOT_DIST + OF_TOT_DIST  + NS_TOT_DIST + PP_TOT_DIST + SP_TOT_DIST) %>%
+  mutate(TOT_DIST = NO_TOT_DIST + OF_TOT_DIST  + NS_TOT_DIST + PP_TOT_DIST + SP_TOT_DIST) %>%
   mutate(bidose = ifelse(TRT=="CTRL", "CTRL","TRT")) %>%
-  # mutate(dose = ifelse(TRT=="CTRL", 0, 
-  #                        ifelse(TRT=="LOW", 500, 
-  #                               ifelse(TRT=="MED", 1000,
-  #                                      ifelse(TRT=="HIGH", 2000, 0))))) %>%
+  mutate(PP_SOC = PP_STRANGER_TOT_DUR + PP_PARTNER_TOT_DUR, SP_SOC = SP_DUR_CAGEMATE + SP_DUR_STRANGER) %>%
+  mutate(TOT_SOC = PP_SOC + SP_SOC + NS_DUR_STRANGER) %>%
+   #mutate(OF_AVG_CENTER = OF_DUR_CENTER/OF_BOUTS_CENTER, NS_AVG_STRANGER = NS_DUR_STRANGER/NS_BOUTS_STRANGER, SP_AVG_CAGEMATE = SP_DUR_CAGEMATE/SP_BOUTS_CAGEMATE,
+          #SP_AVG_STRANGER = SP_DUR_STRANGER/SP_BOUTS_STRANGER, PP_AVG_PARTNER = PP_PARTNER_TOT_DUR/PP_BOUTS_PARTNER, PP_AVG_STRANGER = PP_STRANGER_TOT_DUR/PP_BOUTS_STRANGER) %>%
+  na.omit() %>%
+  mutate(SP_MinCon = pmin(SP_LAT_CAGEMATE,SP_LAT_STRANGER), PP_MinCon = pmin(PP_PARTNER_LAT,PP_STRANGER_LAT)) %>%
+  mutate(PP_PARTNER_LAT.t = log(PP_PARTNER_LAT+1), SP_DUR_STRANGER.t = log(SP_DUR_STRANGER+10), NS_DUR_STRANGER.t = log(NS_DUR_STRANGER+10)) %>%
+  filter(SEX == "M") %>%
   select(
+    
   VOLE_ID,
   TRT,
   SEX,
   bidose,
-  #TOT_DIST
-  NO_TOT_DIST,
-  #NO_TRIAL2_OBJ2_TOT_DUR,
-  #NO_TRIAL2_TOT_DIST,
-  #NO_TRIAL3_OBJ2_TOT_DUR,
-  #NO_TRIAL3_TOT_DIST,
-  #OF_DUR_CENTER,
-  OF_TOT_DIST,
-  #OF_BOUTS_CENTER,
-  #NS_INDEX,
-  NS_TOT_DIST,
-  #NS_DUR_STRANGER,
-  PP_INDEX,
-  PP_TOT_DIST,
-  #PP_PARTNER_TOT_DUR,
-  #SP_INDEX,
-  SP_INDEX_inv,
-  SP_TOT_DIST
-  #SP_DUR_CAGEMATE
-  ) %>% na.omit()
-
-head(BehDat.cntrl)
-#nrow(BehDat)
-```
-
-
-```{r}
-  BehDat <- read.csv("Vole_Beh_R_Supp.csv") %>% 
-  #BehDat.cntrl <- read.csv("Vole_Beh_R.csv") %>% 
-  #filter(NULL_CHECK == "Complete Data") %>% 
-  #filter(TRT == "CTRL") %>%
-  #filter(TRT != "CTRL"&TRT != "5MT") %>%
-  filter(TRT != "5MT") %>%
-  relocate("SP_INDEX", .after = "PP_TOT_DIST") %>% 
-  mutate(SP_INDEX_inv = SP_INDEX/-1) %>%
-  mutate(NO_TOT_DIST = NO_TRIAL2_TOT_DIST + NO_TRIAL3_TOT_DIST) %>%
-  mutate(SP_MinCon = min(c(SP_LAT_CAGEMATE,SP_LAT_STRANGER))) %>%
-  select(
-  VOLE_ID,
-  TRT,
-  SEX,
+  
+  #TOT_DIST,
   NO_TOT_DIST,
   OF_TOT_DIST,
   NS_TOT_DIST,
-  PP_TOT_DIST,
   SP_TOT_DIST,
-  OF_Dur_Corner,
-  OF_Lat,
-  #Social
-  NS_Dur_NoCup,
+  PP_TOT_DIST,
+  # 
+  # #TOT_SOC,
+  #NS_DUR_STRANGER,
+  #NS_DUR_STRANGER.t,
+  SP_SOC,
+  #SP_DUR_CAGEMATE,
+  #SP_DUR_STRANGER,
+  #SP_DUR_STRANGER.t,
+  PP_SOC,
+  # PP_PARTNER_TOT_DUR,
+  #PP_STRANGER_TOT_DUR
+  
+  #NS_AVG_STRANGER,
+  #PP_AVG_PARTNER,
+  #PP_AVG_STRANGER,
+  #SP_AVG_CAGEMATE,
+  #SP_AVG_STRANGER
+  
+  #OF_AVG_CENTER,
+  #OF_BOUTS_CENTER,
+  #OF_Dur_Walls,
+  
+  # OF_droppings,
+  # NS_droppings,
+  # SP_droppings,
+  # PP_droppings
+  
+  #NS_INDEX,
   PP_INDEX,
-  PP_Duration_Neutral,
-  SP_INDEX_inv,
-  SP_Dur_Neutral
+  SP_INDEX_inv
+  
+  #NS_LAT_STRANGER,
+  #PP_STRANGER_LAT,
+  #PP_PARTNER_LAT.t
+  #PP_BOUTS_PARTNER,
+  #PP_PARTNER_LAT
+  #PP_MinCon,
+  #SP_LAT_STRANGER
+  #SP_LAT_CAGEMATE
+  #SP_MinCon
   ) %>% na.omit()
 
-head(BehDat)
+BehDat <- BehDat.cntrl
+N <- ncol(BehDat.cntrl)
 ```
 
 
 
-#Summary  
+#Summary Visualizations
 ```{r}
-kable(do.call(cbind, lapply(BehDat[,5:38], summary)), caption = "Summary Statistics for All Variables", digits = 1, format = 'markdown')
+#Reorder Treatment Levels
+BehDat.cntrl$TRT <- factor(BehDat.cntrl$TRT, levels = c("CTRL", "LOW", "MID", "HIGH"))
+
+#Create Boxplots
+for(i in 5:N) {
+a <- ggplot(BehDat.cntrl,aes(x=bidose,y=BehDat.cntrl[,i])) + 
+  geom_boxplot() +
+  geom_jitter(aes(color=SEX)) +
+  ggtitle(colnames(BehDat.cntrl)[i]) + 
+  facet_wrap(~SEX)
+print(a)
+}
+
+#Create Histograms
+for(i in 5:N) {
+a <- ggplot(BehDat.cntrl,aes(scale(BehDat.cntrl[,i]))) + 
+  geom_histogram(binwidth = .5) +
+  ggtitle(colnames(BehDat.cntrl)[i])
+print(a)
+}
+
+#Create Histograms
+for(i in 5:N) {
+a <- ggplot(BehDat.cntrl,aes(BehDat.cntrl[,i])) + 
+  geom_histogram() +
+  ggtitle(colnames(BehDat.cntrl)[i])
+print(a)
+}
+
+#QQ Plots of Univariate Normality
+for(i in 5:N) {
+qqnorm(scale(BehDat[,i]), main = colnames(BehDat)[i])
+abline(0,1)
+}
+
+# fit <- lm(cbind(PP_STRANGER_LAT,SP_LAT_STRANGER)~bidose*SEX, data=BehDat.cntrl)
+# summary(fit)
+# summary.aov(fit)
+
+# fit <- lm(cbind(OF_droppings,
+#   NS_droppings,
+#   SP_droppings,
+#   PP_droppings)~bidose*SEX, data=BehDat.cntrl)
+# summary(fit)
+# summary.aov(fit)
+
 ```
 
 
-#Test of Correlations  
+#Normality Assumptions  
 ```{r}
-#Correlations
+#Univariate Normality Tests
+mvn(BehDat.cntrl[,5:N])$univariateNormality
 
-res2.A <-rcorr(as.matrix(BehDat.cntrl[,4:12]),type = "pearson")
+#Multivariate Normality Tests Full Data
+mvn(BehDat.cntrl[,5:N])$multivariateNormality
+mvn(BehDat.cntrl[,5:N], mvnTest = "hz")$multivariateNormality
+mvn(BehDat.cntrl[,5:N], mvnTest = "dh")$multivariateNormality
+mvn(BehDat.cntrl[,5:N], mvnTest = "energy")$multivariateNormality
 
-res2.A2 <-rcorr(as.matrix(scale(BehDat[,4:15])),type = "pearson")
+#MultiVariate Outliers
+psych::outlier(BehDat.cntrl[,5:N])
 
-res2.F <-rcorr(as.matrix(scale(filter(BehDat,SEX=="F")[,4:13])),type = "pearson")
-res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,4:13])),type = "pearson")
+md <- mahalanobis(BehDat.cntrl[,5:N], center = colMeans(BehDat.cntrl[,5:N]), cov = cov(BehDat.cntrl[,5:N]))
+alpha <- .05
+cutoff <- (qchisq(p = 1 - alpha, df = ncol(BehDat.cntrl[,5:N])))
+names_outliers_MH <- which(md > cutoff)
+excluded_mh <- names_outliers_MH
+BehDat.clean <- BehDat.cntrl[-excluded_mh, ]
+BehDat.cntrl[excluded_mh, ]
 
-#png(file="corr.png", res=300, width=4500, height=4500)
+psych::outlier(BehDat.clean[,5:N])
+
+#Univariate Normality Tests w/o Outliers
+mvn(BehDat.clean[,5:N])$univariateNormality
+
+#Multivariate Tests W/o Outliers
+mvn(BehDat.clean[,5:N])$multivariateNormality
+mvn(BehDat.clean[,5:N], mvnTest = "hz")$multivariateNormality
+mvn(BehDat.clean[,5:N], mvnTest = "dh")$multivariateNormality
+mvn(BehDat.clean[,5:N], mvnTest = "energy")$multivariateNormality
+```
 
 
-corrplot(res2.A$r, type="upper", #order="hclust", 
-         p.mat = res2.A$P, sig.level = 0.05, insig = "blank")
 
-corrplot(res2.A2$r, type="upper", order="hclust", 
-         p.mat = res2.A2$P, sig.level = 0.05, insig = "blank")
+#Correlations  
+```{r}
+#Full Data
+res2.A <-rcorr(as.matrix(BehDat.cntrl[,5:N]),type = "pearson")
+corrplot(res2.A$r, type="upper", order="hclust")
+
+#Clean Data
+res2.A <-rcorr(as.matrix(BehDat.clean[,5:N]),type = "pearson")
+corrplot(res2.A$r, type="upper", order="hclust")
 
 
+#Full Data Male
+res2.A <-rcorr(as.matrix(BehDat.cntrl[BehDat.cntrl$SEX == 'M',5:N]),type = "pearson")
+corrplot(res2.A$r, type="upper", order="hclust", title = 'Full Data Male')
+
+#Full Data Female
+res2.A <-rcorr(as.matrix(BehDat.cntrl[BehDat.cntrl$SEX == 'F',5:N]),type = "pearson")
+corrplot(res2.A$r, type="upper", order="hclust", title = 'Full Data Female')
+
+table(BehDat.cntrl$bidose,BehDat.cntrl$SEX)
+
+
+
+res.1 <-rcorr(as.matrix(filter(BehDat.cntrl, SEX == 'M' & bidose == 'CTRL')[,5:N]),type = "pearson")
+res.2 <-rcorr(as.matrix(filter(BehDat.cntrl, SEX == 'M' & bidose == 'TRT')[,5:N]),type = "pearson")
+res.3 <-rcorr(as.matrix(filter(BehDat.cntrl, SEX == 'F' & bidose == 'CTRL')[,5:N]),type = "pearson")
+res.4 <-rcorr(as.matrix(filter(BehDat.cntrl, SEX == 'F' & bidose == 'TRT')[,5:N]),type = "pearson")
+
+corrplot(res.1$r, type="upper" ,title = 'MALE CTRL')
+corrplot(res.2$r, type="upper" ,title = 'MALE TRT')
+corrplot(res.3$r, type="upper" ,title = 'FEMALE CTRL')
+corrplot(res.4$r, type="upper",title = 'FEMALE TRT')
+
+#Possible Testing of Correlations
 ctrl.p <- flattenCorrMatrix(res2.A$r, res2.A$P)
-trt.p <- flattenCorrMatrix(res2.A2$r, res2.A2$P)
+trt.p <- flattenCorrMatrix(res2.A$r, res2.A$P)
 
+#Need a Correction for multiple comparisons
 P <- ctrl.p %>% left_join(trt.p, by=c("row",'column')) %>% select("row","column","cor.x","cor.y") %>% rename("ctrl.p"="cor.x", "trt.p"="cor.y") %>%
    mutate(F.Z = (.5*sqrt(nrow(BehDat)-3))*((log((1+trt.p)/(1-trt.p))-log((1+ctrl.p)/(1-ctrl.p))))) %>% mutate(F.P = round(1-pnorm(abs(F.Z)),4))
-
-#1-pnorm(1.96)
-```
-
-
-
-#Exploratory  
-```{r}
-#Normality
-for(i in 4:18) {
-qqnorm(scale(filter(BehDat,SEX=="F")[,i]), main = colnames(BehDat)[i])
-abline(0,1)
-}
-
-
-for(i in 4:18) {
-qqnorm(scale(filter(BehDat,SEX=="M")[,i]), main = colnames(BehDat)[i])
-abline(0,1)
-}
-
-
-#Correlations
-
-res2.A <-rcorr(as.matrix(BehDat.cntrl[,4:12]),type = "pearson")
-
-res2.A2 <-rcorr(as.matrix(BehDat[,4:12]),type = "pearson")
-
-res2.F <-rcorr(as.matrix(scale(filter(BehDat,SEX=="F")[,4:13])),type = "pearson")
-res2.M <-rcorr(as.matrix(scale(filter(BehDat,SEX=="M")[,4:13])),type = "pearson")
-
-#png(file="corr.png", res=300, width=4500, height=4500)
-
-
-corrplot(res2.A$r, type="upper", #order="hclust", 
-         p.mat = res2.A$P, sig.level = 0.05, insig = "blank")
-
-corrplot(res2.A2$r, type="upper", #order="hclust", 
-         p.mat = res2.A2$P, sig.level = 0.05, insig = "blank")
-
-flattenCorrMatrix(res2.A$r, res2.A$P)
-flattenCorrMatrix(res2.A2$r, res2.A2$P)
-
-
-
-
-corrplot(res2.F$r, type="upper", order="hclust", 
-         p.mat = res2.F$P, sig.level = 0.05, insig = "blank")
-
-corrplot(res2.M$r, type="upper", order="hclust", 
-         p.mat = res2.M$P, sig.level = 0.05, insig = "blank")
-
-corrplot(cor(scale(filter(BehDat,SEX=="M")[,4:18])),  order="hclust")
-
-
-#png(file="panelF.png", res=300, width=4500, height=4500)
-pairs.panels(filter(BehDat,SEX=="F")[,4:18],stars = T)
-
-pairs.panels(filter(BehDat,SEX=="M")[,4:18],stars = T)
-
-
-
-
-#dev.off()
-
-
-
-
-
-
-#OUTLIERS
-
-dat <- filter(BehDat,SEX=="F")[,4:18]
-
-dat <- filter(BehDat,SEX=="M")[,4:18]
-
-psych::outlier(BehDat[,4:13])
-
-md <- mahalanobis(BehDat[,4:13], center = colMeans(BehDat[,4:13]), cov = cov(BehDat[,4:13]))
-
-alpha <- .001
-
-cutoff <- (qchisq(p = 1 - alpha, df = ncol(BehDat[,4:13])))
-
-names_outliers_MH <- which(md > cutoff)
-
-excluded_mh <- names_outliers_MH
-
-data_clean_mh <- BehDat[-excluded_mh, ]
-
-BehDat[excluded_mh, ]
-
 
 ```
 
 
 #Exploratory Factor Analysis
 ```{r}
+#Inputs
 
-BehDat.sF <- filter(BehDat,SEX=="F")[,4:13]
-BehDat.sM <- filter(BehDat,SEX=="M")[,4:13]
+#Preprocessing
+X <- BehDat.cntrl[,5:N]
+X.c <- BehDat.clean[,5:N]
 
-
-#Correct Scaling of Variables
-for (i in 1:6) {
-  BehDat.sF[,i] <- max(BehDat.sF[,i])-BehDat.sF[,i]
+for (i in 1:5) {
+  X[,i] <- max(X[,i])-X[,i]
+  X.c[,i] <- max(X.c[,i])-X.c[,i]
 }
 
-for (i in 1:3) {
-  BehDat.sM[,i] <- max(BehDat.sM[,i])-BehDat.sM[,i]
-}
+X <- scale(X)
+X.c <- scale(X.c)
 
+#Parallel Analysis
+fa.parallel(X, n.iter =100, fm = "ml", fa="fa")
+fa.parallel(X.c, n.iter =100, fm = "ml", fa="fa")
 
+f <- 2
 
-#MALE
-fa.parallel(BehDat[,4:26], n.iter = 500, fm = "ml", fa="fa")
+#EFA Full Data
+fa.out.none <- fa(X, fm="ml",nfactors = f, rotate="none")
+fa.out.varimax <- fa(X, fm="ml",nfactors = f, rotate="varimax")
+fa.out.quartimax <- fa(X, fm="ml",nfactors = f, rotate="quartimax")
 
-out <- factanal(scale(BehDat[,4:26]), factors = 5)
-out
+Results <- rbind(fa.out.none$TLI,fa.out.none$PVAL,fa.out.none$RMSEA[1])
+rownames(Results) <- c("Tucker Lewis Index", "ChiSq Pval","RMSEA")
+round(Results,2)
 
-fa.out.none <- fa(BehDat[4:13], fm="ml",nfactors = 2, rotate="none")
-fa.out.none
+par(mfrow= c(1,3))
+fa.diagram(fa.out.none, cut = 0.2, simple = F, main = "No Rotation")
+fa.diagram(fa.out.varimax, cut =0.2, simple = F, main = "Varimax rotation")
+fa.diagram(fa.out.quartimax,cut =0.2, simple = F, main = "Qaurtimax roation")
 
-out <- factanal(scale(BehDat.sF), factors = 1)
-out
+#EFA Fo Outliers
+fa.out.none <- fa(X.c, fm="ml",nfactors = f, rotate="none")
+fa.out.varimax <- fa(X.c, fm="ml",nfactors = f, rotate="varimax")
+fa.out.quartimax <- fa(X.c, fm="ml",nfactors = f, rotate="quartimax")
 
-fa.out.none <- fa(scale(BehDat[4:16]), fm="ml",nfactors = 2, rotate="none")
-fa.out.none
+Results <- rbind(fa.out.none$TLI,fa.out.none$PVAL,fa.out.none$RMSEA[1])
+rownames(Results) <- c("Tucker Lewis Index", "ChiSq Pval","RMSEA")
+round(Results,2)
 
-out <- factanal(scale(BehDat.sM), factors = 1)
-out
-
-#Raw Scaled Values
-fa.out.none <- fa(BehDat.sM, fm="ml",nfactors = 3, rotate="none")
-fa.out.varimax <- fa(BehDat.sM, fm="ml",nfactors = 3, rotate="varimax")
-fa.out.quartimax <- fa(BehDat.sM, fm="ml",nfactors = 3, rotate="quartimax")
-
-RawResults <- rbind(fa.out.none$TLI,fa.out.none$PVAL,fa.out.none$RMSEA[1])
-rownames(RawResults) <- c("Tucker Lewis Index", "ChiSq Pval","RMSEA")
-
-#par(mfrow= c(1,3))
-fa.diagram(fa.out.none, cut = 0.4, simple = F, main = "No Rotation")
-fa.diagram(fa.out.varimax, cut =0.4, simple = F, main = "Varimax rotation")
-fa.diagram(fa.out.quartimax, cut=0.4, simple = F, main = "Qaurtimax roation")
-
-
-
-
-
-#FEMALE
-fa.parallel(BehDat.sF, n.iter = 100, fm = "ml", fa="fa")
-
-out <- factanal(BehDat.sF, factors = 1)
-out
-
-
-#Raw Scaled Values
-fa.out.none <- fa(BehDat.sF, fm="ml",nfactors = 3, rotate="none")
-fa.out.varimax <- fa(BehDat.sF, fm="ml",nfactors = 3, rotate="varimax")
-fa.out.quartimax <- fa(BehDat.sF, fm="ml",nfactors = 3, rotate="quartimax")
-
-RawResults <- rbind(fa.out.none$TLI,fa.out.none$PVAL,fa.out.none$RMSEA[1])
-rownames(RawResults) <- c("Tucker Lewis Index", "ChiSq Pval","RMSEA")
-
-#par(mfrow= c(1,3))
-fa.diagram(fa.out.none, cut = 0.4, simple = F, main = "No Rotation")
-fa.diagram(fa.out.varimax, cut =0.4, simple = F, main = "Varimax rotation")
-fa.diagram(fa.out.quartimax, cut=0.4, simple = F, main = "Qaurtimax roation")
+par(mfrow= c(1,3))
+fa.diagram(fa.out.none, cut = 0.2, simple = F, main = "No Rotation")
+fa.diagram(fa.out.varimax, cut =0.2, simple = F, main = "Varimax rotation")
+fa.diagram(fa.out.quartimax, cut=0.2, simple = F, main = "Qaurtimax roation")
 ```
 
+
+#Confirmatory Factor Analysis (Total Stranger Interactions)
 ```{r}
-BehDat.s <- BehDat %>% select(contains("DIST")) %>% mutate(NO_TOTAL_DIST = BEH.NO_TRIAL3_TOT_DIST + BEH.NO_TRIAL2_TOT_DIST, .keep = "unused") %>% scale()
-#BehDat.sM <- filter(BehDat,SEX=="M")[,4:18] %>% scale()
+#Preprocessing
+CFADat <- BehDat.cntrl[,5:N]
+CFADat.c <- BehDat.clean[,5:N]
+
+for (i in 1:5) {
+  CFADat[,i] <- max(CFADat[,i])-CFADat[,i]
+  CFADat.c[,i] <- max(CFADat.c[,i])-CFADat.c[,i]
+}
+
+CFADat <- data.frame(scale(CFADat))
+CFADat.c <- data.frame(scale(CFADat.c))
+
+#Model Specification
+textModel <-  sem::specifyModel(text="
+##Specification of Anxiety
+ANX   -> NO_TOT_DIST,              lambda11,   NA
+ANX   -> OF_TOT_DIST,              lambda21,   NA
+ANX   -> NS_TOT_DIST,              lambda31,   NA
+ANX   -> PP_TOT_DIST,              lambda41,   NA
+ANX   -> SP_TOT_DIST,              lambda51,   NA
+##Specification of Social
+SOC   -> NS_DUR_STRANGER,       lambda12,   NA
+SOC   -> PP_STRANGER_TOT_DUR,   lambda22,   NA
+SOC   -> SP_DUR_STRANGER,       lambda32,   NA
+##Uniqueness of Variables
+NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
+OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
+NS_TOT_DIST             <->  NS_TOT_DIST,               psi3,    NA
+PP_TOT_DIST             <->  PP_TOT_DIST,               psi4,    NA
+SP_TOT_DIST             <->  SP_TOT_DIST,               psi5,    NA
+NS_DUR_STRANGER         <->  NS_DUR_STRANGER,           psi6,    NA
+PP_STRANGER_TOT_DUR     <->  PP_STRANGER_TOT_DUR,       psi7,    NA
+SP_DUR_STRANGER         <->  SP_DUR_STRANGER,           psi8,    NA
+##Assumed Fixed Variances of Factors (since data is scaled?)
+ANX   <->   ANX,   NA,  1
+SOC   <->   SOC,   NA,  1
+##Correlation Between Latent Variables
+ANX   <->   SOC,    rho1, NA
+")
+
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+ # Model Chisquare =  22.09628   Df =  19 Pr(>Chisq) = 0.2794909
+ # Goodness-of-fit index =  0.9334547
+ # Adjusted goodness-of-fit index =  0.8739142
+ # RMSEA index =  0.04661358   90% CI: (NA, 0.1155219)
+ # Bentler-Bonett NFI =  0.9031891
+ # Tucker-Lewis NNFI =  0.9772129
+
+ #1 Estimate insig (8.763709e-02	SP_DUR_STRANGER <--> SP_DUR_STRANGER)
+
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveGLS
+                  )
+
+ # Model Chisquare =  18.69105   Df =  19 Pr(>Chisq) = 0.4768105
+ # Goodness-of-fit index =  0.9376965
+ # Adjusted goodness-of-fit index =  0.8819513
+ # RMSEA index =  0   90% CI: (NA, 0.09925957)
+ # Bentler-Bonett NFI =  0.9697971
+ # Tucker-Lewis NNFI =  1.000771
+
+ #No insig Estimates
+
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+ # Model Chisquare =  41.12428   Df =  19 Pr(>Chisq) = 0.002323121
+ # Goodness-of-fit index =  0.8674984
+ # Adjusted goodness-of-fit index =  0.7489442
+ # RMSEA index =  0.1318319   90% CI: (0.07607498, 0.187205)
+ # Bentler-Bonett NFI =  0.8451127
+ # Tucker-Lewis NNFI =  0.8627255
+
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveGLS
+                  )
+
+ # Model Chisquare =  28.62445   Df =  19 Pr(>Chisq) = 0.07212646
+ # Goodness-of-fit index =  0.8931924
+ # Adjusted goodness-of-fit index =  0.7976276
+ # RMSEA index =  0.08695082   90% CI: (NA, 0.1486247)
+ # Bentler-Bonett NFI =  0.9793594
+ # Tucker-Lewis NNFI =  0.9895619
+
+#Fit and Summary
+summary(Risk_Model, fit.indices=c("GFI", "AGFI", "RMSEA", "NFI", "NNFI", "CFI", "RNI",
+"IFI", "SRMR", "AIC", "AICc", "BIC", "CAIC"))
+
+round(Risk_Model$S - Risk_Model$C,2)
+
+Vhat <- Risk_Model$vcov
+corrplot(cov2cor(Vhat))
+
+pathDiagram(Risk_Model,
+            ignore.double =  F,
+            edge.labels = "both",
+            file = "Risk_Model_plot",
+            output.type = "dot",
+            node.colors = c("steelblue","transparent"))
+
+grViz("Risk_Model_plot.dot")
+
+```
 
 
 
-#MALE
-fa.parallel(BehDat.s, n.iter = 100, fm = "ml", fa="fa")
+#Confirmatory Factor Analysis (Total Non-Partner Interactions)
+```{r}
+#Preprocessing
+CFADat <- BehDat.cntrl[,5:N]
+CFADat.c <- BehDat.clean[,5:N]
 
-out <- factanal(BehDat.s, factors = 1)
-out
-B <- out$loadings[,1] %*% t(BehDat.s)
-BehDat$Y <- t(B)
+for (i in 1:5) {
+  CFADat[,i] <- max(CFADat[,i])-CFADat[,i]
+  CFADat.c[,i] <- max(CFADat.c[,i])-CFADat.c[,i]
+}
 
-fit <- lm(Y~TRT*SEX, data=BehDat)
+CFADat <- data.frame(scale(CFADat))
+CFADat.c <- data.frame(scale(CFADat.c))
+
+#Model Specification
+textModel <-  sem::specifyModel(text="
+##Specification of Anxiety
+ANX   -> NO_TOT_DIST,              lambda11,   NA
+ANX   -> OF_TOT_DIST,              lambda21,   NA
+ANX   -> NS_TOT_DIST,              lambda31,   NA
+ANX   -> PP_TOT_DIST,              lambda41,   NA
+ANX   -> SP_TOT_DIST,              lambda51,   NA
+##Specification of Social
+SOC   -> NS_DUR_STRANGER,       lambda12,   NA
+##SOC   -> SP_DUR_CAGEMATE,       lambda22,   NA
+SOC   -> SP_DUR_STRANGER,       lambda32,   NA
+##Uniqueness of Variables
+NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
+OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
+NS_TOT_DIST             <->  NS_TOT_DIST,               psi3,    NA
+PP_TOT_DIST             <->  PP_TOT_DIST,               psi4,    NA
+SP_TOT_DIST             <->  SP_TOT_DIST,               psi5,    NA
+NS_DUR_STRANGER         <->  NS_DUR_STRANGER,           psi6,    NA
+##SP_DUR_CAGEMATE         <->  SP_DUR_CAGEMATE,           psi7,    NA
+SP_DUR_STRANGER         <->  SP_DUR_STRANGER,           psi8,    NA
+##Assumed Fixed Variances of Factors (since data is scaled?)
+ANX   <->   ANX,   NA,  1
+SOC   <->   SOC,   NA,  1
+##Correlation Between Latent Variables
+ANX   <->   SOC,    rho1, NA
+")
+
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+ # Model Chisquare =  30.55921   Df =  19 Pr(>Chisq) = 0.04509897
+ # Goodness-of-fit index =  0.9152461
+ # Adjusted goodness-of-fit index =  0.8394136
+ # RMSEA index =  0.09006513   90% CI: (0.01358003, 0.1468697)
+ # Bentler-Bonett NFI =  0.8713432
+ # Tucker-Lewis NNFI =  0.9186989
+
+ #All estimates were significant
+
+
+#REMOVED CAGEMATE
+# Model Chisquare =  19.52736   Df =  13 Pr(>Chisq) = 0.1076383
+#  Goodness-of-fit index =  0.9341271
+#  Adjusted goodness-of-fit index =  0.8581199
+#  RMSEA index =  0.08182132   90% CI: (NA, 0.1520267)
+#  Bentler-Bonett NFI =  0.9118816
+#  Tucker-Lewis NNFI =  0.9474377
+
+#One estimate (1.866191e-01	SP_DUR_STRANGER <--> SP_DUR_STRANGER)
+
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveGLS
+                  )
+
+# Model Chisquare =  27.64655   Df =  19 Pr(>Chisq) = 0.09047096
+#  Goodness-of-fit index =  0.9078448
+#  Adjusted goodness-of-fit index =  0.8253902
+#  RMSEA index =  0.07789578   90% CI: (NA, 0.1370983)
+#  Bentler-Bonett NFI =  0.9633556
+#  Tucker-Lewis NNFI =  0.9824596
+
+#5 Estimates not significant
+
+
+#REMOVED CAGEMATE
+# Model Chisquare =  17.01589   Df =  13 Pr(>Chisq) = 0.1985785
+#  Goodness-of-fit index =  0.9351775
+#  Adjusted goodness-of-fit index =  0.8603824
+#  RMSEA index =  0.06417839   90% CI: (NA, 0.1391626)
+#  Bentler-Bonett NFI =  0.9721658
+#  Tucker-Lewis NNFI =  0.9890109
+
+# 1 Estimate insig 1.022955e-01	SP_DUR_STRANGER <--> SP_DUR_STRANGER
+
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveGLS
+                  )
+
+
+
+#Fit and Summary
+summary(Risk_Model, fit.indices=c("GFI", "AGFI", "RMSEA", "NFI", "NNFI", "CFI", "RNI",
+"IFI", "SRMR", "AIC", "AICc", "BIC", "CAIC"))
+
+round(Risk_Model$S - Risk_Model$C,2)
+
+Vhat <- Risk_Model$vcov
+corrplot(cov2cor(Vhat))
+
+pathDiagram(Risk_Model,
+            ignore.double =  F,
+            edge.labels = "both",
+            file = "Risk_Model_plot",
+            output.type = "dot",
+            node.colors = c("steelblue","transparent"))
+
+grViz("Risk_Model_plot.dot")
+
+```
+
+
+#Factor Score Analysis
+```{r}
+FS <- fscores(Risk_Model)
+
+newdat <- cbind(BehDat.cntrl[,1:4],FS)
+
+
+fit1.A <- lm(ANX~TRT*SEX, data=newdat)
+summary(fit1.A)
+summary.aov(fit1.A)
+#plot(fit1.A)
+
+fit1.S <- lm(SOC~TRT*SEX, data=newdat)
+summary(fit1.S)
+summary.aov(fit1.S)
+#plot(fit1.S)
+
+fit2.A <- lm(ANX~bidose*SEX, data=newdat)
+summary(fit2.A)
+anova(fit2.A)
+#plot(fit2.A)
+
+fit2.S <- lm(SOC~bidose*SEX, data=newdat)
+summary(fit2.S)
+anova(fit2.S)
+
+stats::anova(fit2.A,fit1.A)
+stats::anova(fit2.S,fit1.S)
+
+fit <- manova(cbind(ANX,SOC)~TRT*SEX, data=newdat)
 summary(fit)
+
+fit <- manova(cbind(ANX,SOC)~bidose*SEX, data=newdat)
+summary(fit)
+
 summary.aov(fit)
 
-head(BehDat.sF)
+hist(newdat$ANX)
+hist(newdat$SOC)
 
-
-
-
-fit1 <- lm(TOT_DIST~TRT*SEX, data=BehDat)
-summary(fit1)
-
-fit2 <- lm(TOT_DIST~bidose*SEX, data=BehDat)
-summary(fit2)
-
-stats::anova(fit2,fit1)
-
-kable(table(BehDat$TRT, BehDat$SEX))
 
 ```
 
 
-#Confirmatory Factor Analysis
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#Not Viable
+#Confirmatory Factor Analysis (Indices)
 ```{r}
+#Preprocessing
+CFADat <- BehDat.cntrl[,5:N]
+CFADat.c <- BehDat.clean[,5:N]
 
-BehDat.sF <- filter(BehDat,SEX=="F")[,4:13] %>% scale()
-BehDat.sM <- filter(BehDat,SEX=="M")[,4:13] %>% scale()
-BehDat.cntrl <- BehDat.cntrl[,5:11] #%>% mutate_if(is.numeric, scale)
-
-
-# c(4,5,6,7,9,11) c(1,2,3,4,6,8)
-for (i in c(1,2,3,5,7)) {
-  BehDat.cntrl[,i] <- max(BehDat.cntrl[,i])-BehDat.cntrl[,i]
+for (i in 1:5) {
+  CFADat[,i] <- max(CFADat[,i])-CFADat[,i]
+  CFADat.c[,i] <- max(CFADat.c[,i])-CFADat.c[,i]
 }
 
-textModel <-  specifyModel(text="
+CFADat <- data.frame(scale(CFADat))
+CFADat.c <- data.frame(scale(CFADat.c))
+
+#Model Specification
+textModel <-  sem::specifyModel(text="
 ##Specification of Anxiety
 ANX   -> NO_TOT_DIST,              lambda11,   NA
 ANX   -> OF_TOT_DIST,              lambda21,   NA
@@ -371,8 +617,8 @@ ANX   -> NS_TOT_DIST,              lambda41,   NA
 ANX   -> PP_TOT_DIST,              lambda51,   NA
 ANX   -> SP_TOT_DIST,              lambda61,   NA
 ##Specification of Social
-SOC   -> PP_INDEX,              lambda22,   NA
-SOC   -> SP_INDEX_inv,          lambda32,   NA
+PB   -> PP_INDEX,              lambda22,   NA
+PB   -> SP_INDEX_inv,          lambda32,   NA
 ##Uniqueness of Variables
 NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
 OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
@@ -383,45 +629,58 @@ PP_INDEX                <->  PP_INDEX,                  psi8,   NA
 SP_INDEX_inv            <->  SP_INDEX_inv,              psi9,   NA
 ##Assumed Fixed Variances of Factors (since data is scaled?)
 ANX   <->   ANX,   NA,  1
-SOC   <->   SOC,   NA,  1
+PB   <->   PB,   NA,  1
 ##Correlation Between Latent Variables
-ANX   <->   SOC,    rho1, NA
+ANX   <->   PB,    rho1, NA
 ")
 
-#SOC   -> PP_TOT_DIST,           lambda42,   NA
-#SOC   -> SP_TOT_DIST,           lambda52,   NA
-#NS_INDEX                <->  NS_INDEX,                  psi7,   NA
-#SOC   -> NS_INDEX,              lambda12,   NA
-#OF_BOUTS_CENTER         <->  OF_BOUTS_CENTER,           psi3,    NA
-#ANX   -> OF_BOUTS_CENTER,          lambda31,   NA
-
-BehDat.cntrl <- data.frame(scale(BehDat.cntrl))
-
-BehDat.cntrl <- cbind(SEX = BehDat[,3],BehDat.cntrl)
-
-BehDat.cntrl$SEX <- as.factor(BehDat.cntrl$SEX)
-
-#MALE
-riskCov <- cov(scale(BehDat.cntrl))
+#CFA for All Data
 Risk_Model <- sem::sem(model = textModel,
-                  data = BehDat.cntrl,
-                  standardized = T
-                  #group='SEX'
-                  #groups = c('M','F')
-                  #S =riskCov,
-                  #N = nrow(BehDat.cntrl)
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveML
                   )
 
-A <- summary(Risk_Model)
+ # Model Chisquare =  10.29851   Df =  13 Pr(>Chisq) = 0.6693607
+ # Goodness-of-fit index =  0.9629009
+ # Adjusted goodness-of-fit index =  0.9200942
+ # RMSEA index =  0   90% CI: (NA, 0.09255232)
+ # Bentler-Bonett NFI =  0.9383989
+ # Tucker-Lewis NNFI =  1.029853
 
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveGLS
+                  )
+
+# Model Chisquare =  9.588808   Df =  13 Pr(>Chisq) = 0.7271634
+#  Goodness-of-fit index =  0.9634712
+#  Adjusted goodness-of-fit index =  0.9213226
+#  RMSEA index =  0   90% CI: (NA, 0.08551962)
+#  Bentler-Bonett NFI =  0.9729232
+#  Tucker-Lewis NNFI =  1.016541
+
+
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+#Failure to converge
+
+
+#Fit and Summary
 summary(Risk_Model, fit.indices=c("GFI", "AGFI", "RMSEA", "NFI", "NNFI", "CFI", "RNI",
 "IFI", "SRMR", "AIC", "AICc", "BIC", "CAIC"))
 
-a$RMSEA
-
 round(Risk_Model$S - Risk_Model$C,2)
 
-max(round(Risk_Model$S - Risk_Model$C,2))
+Vhat <- Risk_Model$vcov
+corrplot(cov2cor(Vhat))
 
 pathDiagram(Risk_Model,
             ignore.double =  F,
@@ -435,30 +694,389 @@ grViz("Risk_Model_plot.dot")
 
 FS <- fscores(Risk_Model)
 
-newdat <- cbind(BehDat[,1:4],FS)
+newdat <- cbind(BehDat.cntrl[,1:4],FS)
 
-fit1.A <- lm(ANX~TRT*SEX, data=newdat)
+
+fit1.A <- lm(ANX~TRT, data=newdat)
 summary(fit1.A)
+summary.aov(fit1.A)
+#plot(fit1.A)
 
-fit1.S <- lm(SOC~TRT*SEX, data=newdat)
+fit1.S <- lm(PB~TRT, data=newdat)
 summary(fit1.S)
+summary.aov(fit1.S)
+#plot(fit1.S)
 
-fit2.A <- lm(ANX~bidose*SEX, data=newdat)
+fit2.A <- lm(ANX~bidose, data=newdat)
 summary(fit2.A)
+anova(fit2.A)
+#plot(fit2.A)
 
-fit2.S <- lm(SOC~bidose*SEX, data=newdat)
+fit2.S <- lm(PB~bidose, data=newdat)
 summary(fit2.S)
+anova(fit2.S)
 
 stats::anova(fit2.A,fit1.A)
 stats::anova(fit2.S,fit1.S)
 
-fit <- manova(cbind(ANX,SOC)~TRT*SEX, data=newdat)
+fit <- manova(cbind(ANX,PB)~TRT*SEX, data=newdat)
+summary(fit)
+
+fit <- manova(cbind(ANX,PB)~bidose*SEX, data=newdat)
 summary(fit)
 
 summary.aov(fit)
 
+hist(newdat$ANX)
+hist(newdat$SOC)
+
+
 ```
 
+
+
+#Confirmatory Factor Analysis (Total Social Interactions)
+```{r}
+#Preprocessing
+CFADat <- BehDat.cntrl[,5:N]
+CFADat.c <- BehDat.clean[,5:N]
+
+for (i in 1:5) {
+  CFADat[,i] <- max(CFADat[,i])-CFADat[,i]
+  CFADat.c[,i] <- max(CFADat.c[,i])-CFADat.c[,i]
+}
+
+CFADat <- data.frame(scale(CFADat))
+CFADat.c <- data.frame(scale(CFADat.c))
+
+#Model Specification
+textModel <-  sem::specifyModel(text="
+##Specification of Anxiety
+ANX   -> NO_TOT_DIST,              lambda11,   NA
+ANX   -> OF_TOT_DIST,              lambda21,   NA
+ANX   -> NS_TOT_DIST,              lambda31,   NA
+ANX   -> PP_TOT_DIST,              lambda41,   NA
+ANX   -> SP_TOT_DIST,              lambda51,   NA
+##Specification of Social
+SOC   -> NS_DUR_STRANGER,       lambda12,   NA
+SOC   -> PP_SOC,                lambda22,   NA
+SOC   -> SP_SOC,                lambda32,   NA
+##Uniqueness of Variables
+NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
+OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
+NS_TOT_DIST             <->  NS_TOT_DIST,               psi3,    NA
+PP_TOT_DIST             <->  PP_TOT_DIST,               psi4,    NA
+SP_TOT_DIST             <->  SP_TOT_DIST,               psi5,    NA
+NS_DUR_STRANGER         <->  NS_DUR_STRANGER,           psi6,    NA
+PP_SOC                  <->  PP_SOC,                    psi7,    NA
+SP_SOC                  <->  SP_SOC,                    psi8,    NA
+##Assumed Fixed Variances of Factors (since data is scaled?)
+ANX       <->   ANX,      NA,  1
+SOC       <->   SOC,      NA,  1
+##Correlation Between Latent Variables
+ANX       <->   SOC,    rho1, NA
+")
+
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+# Model Chisquare =  31.56728   Df =  19 Pr(>Chisq) = 0.03494414
+#  Goodness-of-fit index =  0.9099034
+#  Adjusted goodness-of-fit index =  0.8292907
+#  RMSEA index =  0.09391031   90% CI: (0.0252203, 0.1500673)
+#  Bentler-Bonett NFI =  0.8645558
+#  Tucker-Lewis NNFI =  0.9096861
+
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveGLS
+                  )
+# 
+# Model Chisquare =  25.61147   Df =  19 Pr(>Chisq) = 0.1413839
+#  Goodness-of-fit index =  0.9146284
+#  Adjusted goodness-of-fit index =  0.8382434
+#  RMSEA index =  0.0681148   90% CI: (NA, 0.129713)
+#  Bentler-Bonett NFI =  0.9645198
+#  Tucker-Lewis NNFI =  0.9859578
+
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+ # Model Chisquare =  45.75112   Df =  19 Pr(>Chisq) = 0.0005374594
+ # Goodness-of-fit index =  0.860524
+ # Adjusted goodness-of-fit index =  0.7357296
+ # RMSEA index =  0.1428465   90% CI: (0.09022631, 0.1963073)
+ # Bentler-Bonett NFI =  0.8210734
+ # Tucker-Lewis NNFI =  0.8268638
+
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveGLS
+                  )
+
+# Model Chisquare =  33.81367   Df =  19 Pr(>Chisq) = 0.01932953
+#  Goodness-of-fit index =  0.8774867
+#  Adjusted goodness-of-fit index =  0.7678695
+#  RMSEA index =  0.1062992   90% CI: (0.04252141, 0.1635821)
+#  Bentler-Bonett NFI =  0.9653225
+#  Tucker-Lewis NNFI =  0.9769497
+
+#Fit and Summary
+summary(Risk_Model, fit.indices=c("GFI", "AGFI", "RMSEA", "NFI", "NNFI", "CFI", "RNI",
+"IFI", "SRMR", "AIC", "AICc", "BIC", "CAIC"))
+
+a$RMSEA
+
+round(Risk_Model$S - Risk_Model$C,2)
+
+max(abs(round(Risk_Model$S - Risk_Model$C,2)))
+
+Vhat <- Risk_Model$vcov
+corrplot(cov2cor(Vhat))
+
+pathDiagram(Risk_Model,
+            ignore.double =  F,
+            edge.labels = "both",
+            file = "Risk_Model_plot",
+            output.type = "dot",
+            node.colors = c("steelblue","transparent"))
+
+grViz("Risk_Model_plot.dot")
+```
+
+
+
+
+
+
+#Confirmatory Factor Analysis (AVG Interactions)
+```{r}
+#Preprocessing
+CFADat <- BehDat.cntrl[,5:N]
+CFADat.c <- BehDat.clean[,5:N]
+
+for (i in 1:5) {
+  CFADat[,i] <- max(CFADat[,i])-CFADat[,i]
+  CFADat.c[,i] <- max(CFADat.c[,i])-CFADat.c[,i]
+}
+
+CFADat <- data.frame(scale(CFADat))
+CFADat.c <- data.frame(scale(CFADat.c))
+
+#Model Specification
+textModel <-  sem::specifyModel(text="
+##Specification of Anxiety
+ANX   -> NO_TOT_DIST,              lambda11,   NA
+ANX   -> OF_TOT_DIST,              lambda21,   NA
+ANX   -> NS_TOT_DIST,              lambda31,   NA
+ANX   -> PP_TOT_DIST,              lambda41,   NA
+ANX   -> SP_TOT_DIST,              lambda51,   NA
+ANX   -> PP_AVG_PARTNER,           lambda61,   NA
+##Specification of Social
+SOC   -> NS_AVG_STRANGER,       lambda12,   NA
+SOC   -> SP_AVG_STRANGER,       lambda22,   NA
+##Uniqueness of Variables
+NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
+OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
+NS_TOT_DIST             <->  NS_TOT_DIST,               psi3,    NA
+PP_TOT_DIST             <->  PP_TOT_DIST,               psi4,    NA
+SP_TOT_DIST             <->  SP_TOT_DIST,               psi5,    NA
+PP_AVG_PARTNER          <->  PP_AVG_PARTNER,            psi6,    NA
+NS_AVG_STRANGER         <->  NS_AVG_STRANGER,           psi7,    NA
+SP_AVG_STRANGER         <->  SP_AVG_STRANGER,           psi8,    NA
+##Assumed Fixed Variances of Factors (since data is scaled?)
+ANX   <->   ANX,   NA,  1
+SOC   <->   SOC,   NA,  1
+##Correlation Between Latent Variables
+ANX   <->   SOC,    rho1, NA
+")
+
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+#Does not work
+
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+#Fit and Summary
+summary(Risk_Model, fit.indices=c("GFI", "AGFI", "RMSEA", "NFI", "NNFI", "CFI", "RNI",
+"IFI", "SRMR", "AIC", "AICc", "BIC", "CAIC"))
+
+round(Risk_Model$S - Risk_Model$C,2)
+
+Vhat <- Risk_Model$vcov
+corrplot(cov2cor(Vhat))
+
+pathDiagram(Risk_Model,
+            ignore.double =  F,
+            edge.labels = "both",
+            file = "Risk_Model_plot",
+            output.type = "dot",
+            node.colors = c("steelblue","transparent"))
+
+grViz("Risk_Model_plot.dot")
+```
+
+
+
+#Confirmatory Factor Analysis (AVG PP and Total Social)
+```{r}
+#Preprocessing
+CFADat <- BehDat.cntrl[,5:N]
+CFADat.c <- BehDat.clean[,5:N]
+
+for (i in 1:5) {
+  CFADat[,i] <- max(CFADat[,i])-CFADat[,i]
+  CFADat.c[,i] <- max(CFADat.c[,i])-CFADat.c[,i]
+}
+
+CFADat <- data.frame(scale(CFADat))
+CFADat.c <- data.frame(scale(CFADat.c))
+
+#Model Specification
+textModel <-  sem::specifyModel(text="
+##Specification of Anxiety
+ANX   -> NO_TOT_DIST,              lambda11,   NA
+ANX   -> OF_TOT_DIST,              lambda21,   NA
+ANX   -> NS_TOT_DIST,              lambda31,   NA
+ANX   -> PP_TOT_DIST,              lambda41,   NA
+ANX   -> SP_TOT_DIST,              lambda51,   NA
+ANX   -> PP_AVG_PARTNER,           lambda61,   NA
+##Specification of Social
+SOC   -> NS_DUR_STRANGER,       lambda12,   NA
+SOC   -> SP_DUR_STRANGER,       lambda22,   NA
+##SOC   -> SP_SOC,                lambda22,   NA
+##Uniqueness of Variables
+NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
+OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
+NS_TOT_DIST             <->  NS_TOT_DIST,               psi3,    NA
+PP_TOT_DIST             <->  PP_TOT_DIST,               psi4,    NA
+SP_TOT_DIST             <->  SP_TOT_DIST,               psi5,    NA
+PP_AVG_PARTNER          <->  PP_AVG_PARTNER,            psi6,    NA
+NS_DUR_STRANGER         <->  NS_DUR_STRANGER,           psi7,    NA
+SP_DUR_STRANGER         <->  SP_DUR_STRANGER,           psi8,    NA
+##SP_SOC                  <->  SP_SOC,                    psi8,    NA
+##Assumed Fixed Variances of Factors (since data is scaled?)
+ANX   <->   ANX,   NA,  1
+SOC   <->   SOC,   NA,  1
+##Correlation Between Latent Variables
+ANX   <->   SOC,    rho1, NA
+")
+
+#CFA for All Data
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+#CFA w/o outliers
+Risk_Model <- sem::sem(model = textModel,
+                  data = CFADat.c,
+                  standardized = T,
+                  objective=objectiveML
+                  )
+
+#Fit and Summary
+summary(Risk_Model, fit.indices=c("GFI", "AGFI", "RMSEA", "NFI", "NNFI", "CFI", "RNI",
+"IFI", "SRMR", "AIC", "AICc", "BIC", "CAIC"))
+
+round(Risk_Model$S - Risk_Model$C,2)
+
+Vhat <- Risk_Model$vcov
+corrplot(cov2cor(Vhat))
+
+pathDiagram(Risk_Model,
+            ignore.double =  F,
+            edge.labels = "both",
+            file = "Risk_Model_plot",
+            output.type = "dot",
+            node.colors = c("steelblue","transparent"))
+
+grViz("Risk_Model_plot.dot")
+```
+
+
+#Confirmatory Factor Analysis
+```{r}
+
+BehDat.sF <- filter(BehDat,SEX=="F")[,4:13] %>% scale()
+BehDat.sM <- filter(BehDat,SEX=="M")[,4:13] %>% scale()
+BehDat.cntrl <- BehDat.cntrl[,5:11] #%>% mutate_if(is.numeric, scale)
+
+
+# c(4,5,6,7,9,11) c(1,2,3,4,6,8)
+for (i in 1:7) {
+  BehDat.cntrl[,i] <- max(BehDat.cntrl[,i])-BehDat.cntrl[,i]
+}
+
+textModel <-  sem::specifyModel(text="
+##Specification of Anxiety
+ANX   -> NO_TOT_DIST,              lambda11,   NA
+ANX   -> OF_TOT_DIST,              lambda21,   NA
+ANX   -> NS_TOT_DIST,              lambda31,   NA
+ANX   -> PP_TOT_DIST,              lambda41,   NA
+ANX   -> SP_TOT_DIST,              lambda51,   NA
+##Specification of Social
+SOC   -> PP_STRANGER_LAT,       lambda22,   NA
+SOC   -> SP_LAT_STRANGER,       lambda32,   NA
+##Uniqueness of Variables
+NO_TOT_DIST             <->  NO_TOT_DIST,               psi1,    NA
+OF_TOT_DIST             <->  OF_TOT_DIST,               psi2,    NA
+NS_TOT_DIST             <->  NS_TOT_DIST,               psi4,    NA
+PP_TOT_DIST             <->  PP_TOT_DIST,               psi5,    NA
+SP_TOT_DIST             <->  SP_TOT_DIST,               psi6,    NA
+PP_STRANGER_LAT         <->  PP_STRANGER_LAT,           psi8,    NA
+SP_LAT_STRANGER         <->  SP_LAT_STRANGER,           psi9,    NA
+##Assumed Fixed Variances of Factors (since data is scaled?)
+ANX   <->   ANX,   NA,  1
+SOC   <->   SOC,   NA,  1
+##Correlation Between Latent Variables
+ANX   <->   SOC,    rho1, NA
+")
+
+summary(Risk_Model, fit.indices=c("GFI", "AGFI", "RMSEA", "NFI", "NNFI", "CFI", "RNI",
+"IFI", "SRMR", "AIC", "AICc", "BIC", "CAIC"))
+
+a$RMSEA
+
+round(Risk_Model$S - Risk_Model$C,2)
+
+max(abs(round(Risk_Model$S - Risk_Model$C,2)))
+
+Vhat <- Risk_Model$vcov
+corrplot(cov2cor(Vhat))
+
+pathDiagram(Risk_Model,
+            ignore.double =  F,
+            edge.labels = "both",
+            file = "Risk_Model_plot",
+            output.type = "dot",
+            node.colors = c("steelblue","transparent"))
+
+grViz("Risk_Model_plot.dot")
+```
 
 
 #Combined Data  
@@ -771,8 +1389,8 @@ NDat <- read.csv("Vole_Neuro_R.csv") %>%
   AVP_SON,
   OT_SON,
   TH_BNST,
-  TH_PVN,
-  NTot
+  TH_PVN
+  #NTot
   ) %>% na.omit()
 
 head(NDat)
@@ -805,7 +1423,7 @@ fit <- manova(cbind(AVP_MEDIAL_PVN,OT_MEDIAL_PVN,AVP_SON,OT_SON,TH_BNST,TH_PVN) 
 
 summary(fit)
 
-fit <- lm(cbind(AVP_MEDIAL_PVN,OT_MEDIAL_PVN,AVP_SON,OT_SON,TH_BNST,TH_PVN) ~ TRT*SEX, data=NDat)
+fit <- lm(cbind(AVP_MEDIAL_PVN,OT_MEDIAL_PVN,AVP_SON,OT_SON,TH_BNST,TH_PVN) ~ bidose*SEX, data=NDat)
 
 summary(fit)
 
@@ -816,6 +1434,9 @@ summary(fit)
 fit <- lm(NTot ~ bidose*SEX, data=NDat)
 
 summary(fit)
+
+out <- factanal(scale(NDat[,5:10]), factors = 1)
+out
 ```
 
 
