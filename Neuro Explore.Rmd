@@ -1,0 +1,113 @@
+---
+title: "ST542 Project: Effect of Flame Retardant Exposure on Prairie Voles
+author: "Lynn Huang"
+date: "February 25, 2021"
+output:
+  pdf_document
+---
+# Getting Started with NHL Records & NHL Stats APIs
+There are 2 datasets from the NCSU Patisaul Lab, one for neuroanatomical endpoints, one for behavioral test endpoints. The voles used in each set are NOT the same, but they do come from the same litters (same dam/sire/DOB).
+
+## Required Packages
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+rm(list=ls())
+library(tidyverse)
+library(readxl)
+library(Hmisc)
+library(corrplot)
+library(ggplot2)
+```
+
+## Load and Clean Data
+```{r Load Data}
+voles.raw <- as_tibble(read_excel("Voles.xlsx", range="A1:J248", col_names=TRUE))
+neuro.raw <- as_tibble(read_excel("Neuro.xlsx", col_names=TRUE))
+litters <- voles[c("ID", "Litter")]
+#behav <- read_excel("Behavior.xlsx", col_names=TRUE)
+```
+
+## Explore Data: Neuro
+Assign litter numbers to neuro data, then average neuro data across litters.
+```{r}
+# Clean Data for Correlation Matrices
+neuro <- neuro.raw %>% select(ID, Sex, Dose,
+                              OT.Medial.PVN, AVP.Medial.PVN,
+                              OT.SON, AVP.SON,
+                              TH.BNST, TH.PVN) %>% filter(Dose != "5MT") %>% na.omit()
+
+neuro.corr <- rcorr(as.matrix(neuro[,4:9]),type = "pearson")
+neuro.corr2 <- rcorr(scale(as.matrix(neuro[,4:9])),type = "pearson")
+corrplot(neuro.corr$r, type="upper", p.mat=neuro.corr$P, sig.level=0.05, insig="blank")
+corrplot(neuro.corr2$r, type="upper", p.mat=neuro.corr2$P, sig.level=0.05, insig="blank") # Scaling doesn't matter
+# See nothing?
+
+# Correlation Plot by Sex?
+neuro.corrF <- rcorr(as.matrix(scale(filter(neuro,Sex=="F")[,4:9])),type = "pearson")
+neuro.corrM <- rcorr(as.matrix(scale(filter(neuro,Sex=="M")[,4:9])),type = "pearson")
+corrplot(neuro.corrF$r, type="upper", p.mat=neuro.corrF$P, sig.level=0.05, insig="blank")
+corrplot(neuro.corrM$r, type="upper", p.mat=neuro.corrM$P, sig.level=0.05, insig="blank")
+
+neuro.corrCTRL <- rcorr(as.matrix(scale(filter(neuro,Dose=="CTRL")[,4:9])),type = "pearson")
+neuro.corrTRT <- rcorr(as.matrix(scale(filter(neuro,Dose!="CTRL")[,4:9])),type = "pearson")
+corrplot(neuro.corrCTRL$r, type="upper", p.mat=neuro.corrCTRL$P, sig.level=0.05, insig="blank")
+corrplot(neuro.corrTRT$r, type="upper", p.mat=neuro.corrTRT$P, sig.level=0.05, insig="blank")
+```
+
+```{r Old Stuff}
+# Add litter numbers
+neuro <- neuro %>% left_join(litters, by="ID")
+# Group by sex and litter, then compute averages
+neuro.litter.avg <- neuro %>% group_by(Sex, Dose) %>% summarise(Avg.OT.Medial.PVN = mean(OT.Medial.PVN),
+                                                                Avg.AVP.Medial.PVN = mean(AVP.Medial.PVN),
+                                                                Avg.OT.SON = mean(OT.SON),
+                                                                Avg.AVP.SON = mean(AVP.SON),
+                                                                Avg.TH.BNST = mean(TH.BNST),
+                                                                Avg.TH.PVN = mean(TH.PVN))
+# Remove NA and make Sex, Dose into factors
+neuro.litter.avg <- na.omit(neuro.litter.avg)
+neuro.litter.avg$Dose <- factor(neuro.litter.avg$Dose, levels=c("CTRL", "LOW", "MED", "HIGH", "5MT"))
+neuro.litter.avg$Sex <- factor(neuro.litter.avg$Sex, levels=c("M", "F"))
+neuro.FM550 <- neuro.litter.avg %>% filter(Dose != "5MT")
+
+# Correlations across anything?
+neuro.FM550.corr <- cor(neuro.FM550[4:9])
+corrplot(neuro.FM550.corr, method="number")
+# Try grouping by treatment?
+neuro.5MT <- neuro.litter.avg %>% filter(Dose=="5MT")
+neuro.CTRL <- neuro.litter.avg %>% filter(Dose=="CTRL")
+neuro.LOW <- neuro.litter.avg %>% filter(Dose=="LOW")
+neuro.MED <- neuro.litter.avg %>% filter(Dose=="MED")
+neuro.HIGH <- neuro.litter.avg %>% filter(Dose=="HIGH")
+
+# Psych
+pairs.panels(neuro.litter.avg, stars = TRUE)
+# Break down by dose
+neuro2 <- neuro.litter.avg
+neuro2$DoseAmt <- ifelse(neuro2$Dose=="CTRL", 0, 
+                         ifelse(neuro2$Dose=="LOW", 500, 
+                                ifelse(neuro2$Dose=="MED", 1000,
+                                       ifelse(neuro2$Dose=="HIGH", 2000,
+                                              ifelse(neuro2$Dose=="5MT", 0, 0)))))
+pairs.panels(neuro2 %>% filter(Dose != "5MT"), stars=TRUE)
+
+
+
+pairs(neuro.5MT[, 4:6])
+
+# Basic numeric summaries by Dose and Sex
+summary(neuro.litter.avg)
+
+# MANOVA
+neuro3 <- neuro2 %>% filter(Dose != "5MT")
+fit <- manova(cbind(Avg.OT.Medial.PVN, Avg.AVP.Medial.PVN, Avg.OT.SON, Avg.AVP.SON) ~ Dose*Sex, data=neuro3)
+summary(fit)
+summary.aov(fit)
+summary.manova(fit)
+
+psych::outlier(neuro3[4:7])
+md <- mahalanobis(neuro3[4:7], center=colMeans(neuro3[4:7]), cov = cov(neuro3[4:7]))
+a <- 0.01
+cutoff <- qchisq(p=1-a, df=4)
+exclude <- which(md > cutoff)
+neuro4 <- neuro3[-exclude,]
+```
